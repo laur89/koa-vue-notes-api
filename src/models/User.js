@@ -1,5 +1,6 @@
 import db from '../db/db'
 
+// here the actual db calls are performed
 class User {
     constructor(data) {
         if (!data) {

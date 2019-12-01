@@ -2,7 +2,7 @@
 
 import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
-import cors from 'kcors'
+import cors from '@koa/cors'
 import logger from './logs/log'
 import userAgent from 'koa-useragent'
 import error from 'koa-json-error'

@@ -1,6 +1,7 @@
 import db from '../db/db'
 import rand from 'randexp'
 
+// here the actual db calls are performed
 class Note {
     constructor(data) {
         if (!data) {
