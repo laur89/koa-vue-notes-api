@@ -1,14 +1,11 @@
-import db from '../db/db'
+import db from '../db/db.js'
 import joi from 'joi'
 import rand from 'randexp'
 import bcrypt from 'bcrypt'
 import jsonwebtoken from 'jsonwebtoken'
 import fse from 'fs-extra'
 import sgMail from '@sendgrid/mail'
-import dateFormat from 'date-fns/format'
-import dateAddMinutes from 'date-fns/add_minutes'
-import dateAddMonths from 'date-fns/add_months'
-import dateCompareAsc from 'date-fns/compare_asc'
+import d from 'date-fns'
 sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 const userSchemaSignup = joi.object({
@@ -182,7 +179,7 @@ class UserController {
                 ' ' +
                 ctx.userAgent.browser,
             ipAddress: ctx.request.ip,
-            expiration: dateAddMonths(new Date(), 1),
+            expiration: d.addMonths(new Date(), 1),
             isValid: true,
         }
 
@@ -233,8 +230,8 @@ class UserController {
         }
 
         //Let's make sure the refreshToken is not expired
-        const refreshTokenIsValid = dateCompareAsc(
-            dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+        const refreshTokenIsValid = d.compareAsc(
+            new Date(),
             refreshTokenDatabaseData.expiration
         )
         if (refreshTokenIsValid !== -1) {
@@ -246,7 +243,7 @@ class UserController {
             await db('refresh_tokens')
                 .update({
                     isValid: false,
-                    updatedAt: dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+                    updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
                 .where({ refreshToken: refreshTokenDatabaseData.refreshToken })
         } catch (error) {
@@ -271,7 +268,7 @@ class UserController {
                 ' ' +
                 ctx.userAgent.browser,
             ipAddress: ctx.request.ip,
-            expiration: dateAddMonths(new Date(), 1),
+            expiration: d.addMonths(new Date(), 1),
             isValid: true,
         }
 
@@ -300,7 +297,7 @@ class UserController {
             await db('refresh_tokens')
                 .update({
                     isValid: false,
-                    updatedAt: dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+                    updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
                 .where({ username: request.username })
             ctx.body = { message: 'SUCCESS' }
@@ -318,7 +315,7 @@ class UserController {
             await db('refresh_tokens')
                 .update({
                     isValid: false,
-                    updatedAt: dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+                    updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
                 .where({
                     username: ctx.state.user.username,
@@ -339,7 +336,7 @@ class UserController {
 
         let resetData = {
             passwordResetToken: new rand(/[a-zA-Z0-9_-]{64,64}/).gen(),
-            passwordResetExpiration: dateAddMinutes(new Date(), 30),
+            passwordResetExpiration: d.addMinutes(new Date(), 30),
         }
 
         try {
@@ -404,8 +401,8 @@ class UserController {
         }
 
         //Let's make sure the refreshToken is not expired
-        var tokenIsValid = dateCompareAsc(
-            dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+        var tokenIsValid = d.compareAsc(
+            new Date(),
             passwordResetData.passwordResetExpiration
         )
         if (tokenIsValid !== -1) {
@@ -436,8 +433,8 @@ class UserController {
             ctx.throw(404, 'INVALID_TOKEN')
         }
 
-        var tokenIsValid = dateCompareAsc(
-            dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+        var tokenIsValid = d.compareAsc(
+            new Date(),
             passwordResetData.passwordResetExpiration
         )
         if (tokenIsValid !== -1) {

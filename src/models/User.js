@@ -1,4 +1,4 @@
-import db from '../db/db'
+import db from '../db/db.js'
 
 // here the actual db calls are performed
 class User {

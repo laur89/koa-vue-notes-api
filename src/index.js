@@ -3,15 +3,20 @@
 import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import cors from '@koa/cors'
-import logger from './logs/log'
+import logger from './logs/log.js'
 import userAgent from 'koa-useragent'
 import error from 'koa-json-error'
 import ratelimit from 'koa-ratelimit'
 import redis from 'ioredis'
+import Consumer from './service/ZMQConsumer.js'
 
 //Routes
-import userActionsRouter from './routes/userActions'
-import notesRouter from './routes/notes'
+import userActionsRouter from './routes/userActions.js'
+import notesRouter from './routes/notes.js'
+
+
+// ZMQ:
+new Consumer().start()
 
 //Initialize app
 const app = new Koa()

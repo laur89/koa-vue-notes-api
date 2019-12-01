@@ -1,8 +1,8 @@
 import joi from 'joi'
-import dateFormat from 'date-fns/format'
+import d from 'date-fns'
 
-import { User } from '../models/User'
-import { Note } from '../models/Note'
+import { User } from '../models/User.js'
+import { Note } from '../models/Note.js'
 
 const noteSchema = joi.object({
     id: joi.number().integer(),
@@ -101,7 +101,7 @@ class NoteController {
         if (note.userId !== user.id) ctx.throw(400, 'INVALID_DATA')
 
         //Add the updated date value
-        note.updatedAt = dateFormat(new Date(), 'YYYY-MM-DD HH:mm:ss')
+        note.updatedAt = d.format(new Date(), 'yyyy-MM-dd HH:mm:ss')
 
         //Add the ip
         request.ipAddress = ctx.ip

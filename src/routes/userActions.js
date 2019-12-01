@@ -1,8 +1,8 @@
 import Router from 'koa-router'
-import jwt from '../middleware/jwt'
-import logger from '../logs/log'
+import jwt from '../middleware/jwt.js'
+import logger from '../logs/log.js'
 
-import UserActionController from '../controllers/UserActionController'
+import UserActionController from '../controllers/UserActionController.js'
 
 const router = new Router()
 const jwtMiddleware = jwt({ secret: process.env.JWT_SECRET })

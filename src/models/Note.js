@@ -1,13 +1,14 @@
-import db from '../db/db'
+import db from '../db/db.js'
 import rand from 'randexp'
 
 // here the actual db calls are performed
 class Note {
     constructor(data) {
-        if (!data) {
-            return
-        }
+        if (!data) return
+        this._assign(data)
+    }
 
+    _assign(data) {
         this.id = data.id
         this.userId = data.userId
         this.title = data.title
@@ -38,7 +39,7 @@ class Note {
         try {
             let result = await findById(id)
             if (!result) return {}
-            this.constructor(result)
+            this._assign(result)
         } catch (error) {
             console.log(error)
             throw new Error('ERROR')

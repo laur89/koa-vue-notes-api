@@ -1,6 +1,6 @@
 import jsonwebtoken from 'jsonwebtoken'
 
-module.exports = (opts = {}) => {
+export default (opts = {}) => {
     const secret = opts.secret
 
     const middleware = async function jwt(ctx, next) {

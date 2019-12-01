@@ -2,9 +2,10 @@
 //in the knex seed/migrate command. Knex will error out if it is not specified.
 if (!process.env.NODE_ENV) { throw new Error('NODE_ENV not set') }
 
-require('dotenv').config();
+import dotenv from 'dotenv'
+dotenv.config()
 
-module.exports = {
+export default {
     testing: {
         client: 'mysql',
         debug: false,

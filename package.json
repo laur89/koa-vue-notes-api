@@ -1,11 +1,12 @@
 {
   "name": "koa-vue-notes-api",
+  "type": "module",
   "version": "2.0.0",
   "description": "A SPA using Koa as the backend and Vue as the frontend.",
   "author": "John Datserakis",
   "private": true,
   "scripts": {
-    "watch": "NODE_ENV=development nodemon app.js --exec",
+    "watch": "NODE_ENV=development nodemon --experimental-modules app.js --exec",
     "test": "NODE_ENV=testing jest --forceExit",
     "build": "NODE_ENV=production babel src -d build && npm run pretty",
     "pretty": "prettier --write --print-width 80 --single-quote --trailing-comma es5 --tab-width 4 --no-semi 'src/**/*.js' 'tests/**/*.js'",
@@ -17,9 +18,11 @@
   "dependencies": {
     "@koa/cors": "^2.2.3",
     "@sendgrid/mail": "6.2.1",
-    "axios": "^0.18.0",
+    "axios": "^0.19.0",
+    "zeromq": "6.0.0-beta.5",
+    "socket.io": "^2.3.0",
     "bcrypt": "^3.0.7",
-    "date-fns": "^1.29.0",
+    "date-fns": "^2.8.1",
     "dotenv": "^6.0.0",
     "faker": "^4.1.0",
     "fs-extra": "^6.0.1",
@@ -28,37 +31,38 @@
     "joi": "^13.4.0",
     "jsonwebtoken": "^8.2.2",
     "knex": "^0.14.6",
-    "koa": "^2.5.1",
+    "koa": "^2.11.0",
     "koa-bodyparser": "^4.2.1",
     "koa-json-error": "^3.1.2",
-    "koa-ratelimit": "^4.1.1",
+    "koa-ratelimit": "^4.3.0",
     "koa-router": "^7.4.0",
     "koa-useragent": "^1.1.0",
     "log4js": "^2.8.0",
     "mysql": "^2.15.0",
-    "npm": "^6.1.0",
-    "pm2": "^2.10.4",
-    "randexp": "^0.4.9"
+    "pm2": "^4.2.0",
+    "randexp": "^0.5.3"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-polyfill": "^6.26.0",
-    "babel-preset-env": "^1.7.0",
-    "babel-register": "^6.26.0",
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.7.0",
+    "core-js": "^3.4.5",
     "cross-env": "^6.0.0",
-    "nodemon": "^1.17.5",
+    "nodemon": "^2.0.1",
     "prettier": "^1.13.4"
   },
   "babel": {
     "presets": [
       [
-        "env",
+        "@babel/preset-env",
         {
           "targets": {
-            "browsers": [
-              "last 2 versions",
-              "safari >= 7"
-            ]
+            "node": true
+          },
+          "useBuiltIns": "usage",
+          "corejs": {
+            "version": 3,
+            "proposals": true
           }
         }
       ]
