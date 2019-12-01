@@ -127,6 +127,15 @@ For this project you'll need to make two databases in your development environme
 
 The `knexfile.js` in the root of the project is all setup with the ability to read your `.env` file. Make sure to have knex installed globally (or use npx), `npm install -g knex`. Let's say you download this project - first you'll `npm install`, then create a `koa_vue_notes` database and a `koa_vue_notes_testing` database, then `knex migrate:latest` and `knex seed:run` to create and seed your tables. Currently it's set up to make five users and 100 notes distributed to those users.
 
+TLDR db init:
+
+- connect to container from host: `mysql -u root --password --protocol=TCP [--port=3306]`
+- `CREATE DATABASE koa_vue_notes_development;`
+- `CREATE DATABASE koa_vue_notes_testing;`
+- exit db cli client w/ `exit`
+- `npx knex migrate:latest` to prepare (ie create) our tables
+- `npx knex seed:run` to seed our tables with some data
+
 ### Docker
 
 Docker is used for the development virtual machine. To use the included dockerfile.yml, run `docker-compose up -d --build` to bring up the machine. To stop the machine, run `docker-compose down`. The main reason docker is used in this case is to host the MySQL database. Make a database named `koa-vue-notes_development`. Connect through Sequel Pro using `host: 127.0.0.1`, `port: 3360`, `user: root`, and `password: docker`.
