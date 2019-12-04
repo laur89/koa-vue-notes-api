@@ -3,9 +3,7 @@ import db from '../db/db.js'
 // here the actual db calls are performed
 class User {
     constructor(data) {
-        if (!data) {
-            return
-        }
+        if (!data) return
 
         this.id = data.id
         this.token = data.token

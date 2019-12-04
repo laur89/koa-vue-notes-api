@@ -2,7 +2,7 @@ version: "3"
 services:
   db:
     image: mariadb:10
-    #volumes:
+    #volumes:  # TODO: do we want it?
       #- ./docker/mysql/data/:/var/lib/mysql/
     networks:
       - AMP

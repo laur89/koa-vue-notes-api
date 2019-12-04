@@ -39,7 +39,7 @@ export default new Promise(async $export => {
   //console.log('yo:: ' + JSON.stringify(i))
   //console.log('yo:: ' + typeof(i.close))
 
-  //Exporting the actual server here for testing availability: TODO
+  //Exporting the actual server here for testing availability: TODO: jest stil not working w/ our setup
   //$export({server: i});
   $export(i);
 });

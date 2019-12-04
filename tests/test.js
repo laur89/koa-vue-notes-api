@@ -4,7 +4,13 @@ if (process.env.NODE_ENV !== 'testing') {
 }
 
 //This starts the app up
-import { server } from '../app'
+//import   server   from '../app.js'
+//const server = await import('../app')
+let server;
+//import('../app.js').then(m => {
+  //const server = m.default;
+  //});
+
 
 //Set up axios a little bit
 import axios from 'axios'
@@ -14,10 +20,19 @@ const request = axios.create({ baseURL: url })
 //Grab the db variable
 import db from '../src/db/db'
 
-beforeAll(async () => {
+beforeAll(async (done) => {
     //As the tests start rollback and migrate our tables
     await db.migrate.rollback()
     await db.migrate.latest()
+    await import('../app.js').then(m=> {
+        server = m.default;
+        console.log('    KEKA: ' + JSON.stringify(m));
+        done();
+    });
+    //import('../app.js').then(m => {
+        //server = m.default;
+        //done();
+    //});
 })
 
 afterAll(async () => {
@@ -28,6 +43,7 @@ afterAll(async () => {
     //This closes the app but it doesn't stop the tests in
     //Jest when done - that's why we have to --forceExit
     //when running Jest for now.
+    console.log('    KEK: ' + JSON.stringify(server))
     return server.close()
 })
 
