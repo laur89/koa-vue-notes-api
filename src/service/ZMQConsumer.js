@@ -1,8 +1,11 @@
 import logger from '../logs/log.js'
+import http from 'http';
 
 import { Chart } from '../models/Chart.js'
 import { User } from '../models/User.js'
 import zmq from 'zeromq'
+import io from "socket.io"
+
 //import ioClient from 'socket.io-client'
 //import http from 'http';
 //import SocketIO from 'socket.io';
@@ -27,21 +30,20 @@ import joi from 'joi'
 //let c = io.attach(process.env.SOCK_PORT)
 
 
-//import * as io from "socket.io"
 
-import io from "socket.io"
 
-const ioSock = io(process.env.SOCK_PORT)
-console.log('yyyy:' + JSON.stringify(typeof io.sockets))
-console.log('yyyy:' + JSON.stringify(typeof ioSock.sockets.emit))
-console.log('yyyy:' + JSON.stringify(typeof ioSock.on))
+//const ioSock = io(process.env.SOCK_PORT)
+//console.log('yyyy sockets.emit:' + JSON.stringify(typeof ioSock.sockets.emit))
+//console.log('yyyy:' + JSON.stringify(typeof ioSock.on))
+//console.log('xx:' + JSON.stringify(typeof io.emit))
+
 
 //let cache = {}
 
 const leanConf = {
     host: process.env.LEAN_HOST,
     port: process.env.LEAN_PORT,
-}
+};
 
 
 const chartSchema = joi.object({
@@ -52,7 +54,7 @@ const chartSchema = joi.object({
         .required(),
     title: joi.string().required(),
     chartId: joi.string().required(),
-})
+});
 
 // Connect to your ZeroMQ Socket:  // TODO delete: superseded by pullFromZmq()
 //zsock = zmq.socket('sub')
@@ -60,20 +62,7 @@ const chartSchema = joi.object({
 //zsock.subscribe('rand');
 //logger.info('ZMQ sub connected to port 4000');
 
-// Connect to SocketIO:
-ioSock.on('connection', function(socket) {
-  logger.info('  >>>>> a user connected!');
-})
 
-// Create a function that will get triggered by ZeroMQ. Data is the binary stream that is recieved by ZeroMQ.
-const trigger = data => {
-  // Throw away the Topic of your recieved String by cutting off the first 4 bytes ('rand')
-  data = data.toString().slice(4)
-  // Parse the remaining string and send the object to your WebUi via SocketIO
-  data = JSON.parse(data)
-       logger.error(`>>> zmq data received: ${data}`);  // TODO delme
-  io.emit('news', data)
-}
 
 
 //async store() {
@@ -107,9 +96,56 @@ const trigger = data => {
     //}
 
 
-
-const ignoredTypes = ['Debug']
+const ignoredTypes = ['Debug'];
 class Consumer {
+    constructor(app) {
+        const server = http.createServer(app);  // form https://github.com/socketio/socket.io
+        //const server = http.Server(app);
+        this.ioSock = io(server, {
+            path: '/sock',
+            serveClient: false,
+            // below are engine.IO options
+            pingInterval: 10000,
+            //transports: ['websocket'],
+            pingTimeout: 5000,
+            cookie: 'sock-hndshk-sid'
+        }) //.of('/sock');
+        //this.ioSock = io.listen(server)
+
+        // TODO consider namespaces: https://socket.io/docs/rooms-and-namespaces/
+        //const nsp = this.ioSock.of('/sock');
+        //nsp.on('connection', function(socket) {
+        //    logger.info('  >>>>> a user connected on our namespace!');
+        //})
+
+        //console.log('yyyy sockets.emit:' + JSON.stringify(typeof this.ioSock.sockets.emit))
+        //console.log('zzzz sockets.emit:' + JSON.stringify(typeof this.ioSock.emit))
+
+        // Receiving connection to SocketIO:
+        this.ioSock.on('connection', function(socket) {
+            logger.info('  >>>>> a user connected!');
+        })
+
+        server.listen(4001)
+    }
+
+    //see also there guys from:    https://socket.io/docs/emit-cheatsheet/
+    //io.on('connect', onConnect);
+    //function onConnect(socket){
+      // sending to the client
+      //socket.emit('hello', 'can you hear me?', 1, 2, 'abc');
+    //...
+
+
+    // Create a function that will get triggered by ZeroMQ. Data is the binary stream that is recieved by ZeroMQ.
+    pushToClients(data) {
+
+        // Parse the remaining string and send the object to your WebUi via SocketIO
+        data = JSON.parse(data)
+        logger.error(`>>> zmq data received: ${data}`);  // TODO delme
+        this.ioSock.sockets.emit('news', data)
+    }
+
     async start() {
       const sock = new zmq.Pull
 
@@ -118,14 +154,17 @@ class Consumer {
 
       let i
       for await (const [msg] of sock) {
+          // Throw away the Topic of your received String by cutting off the first 4 bytes ('rand') (assuming 'rand' was our topic)
+          //data = data.toString().slice(4)
+
         i = JSON.parse(msg)
         //console.log("work: %s", msg.toString())
         //logger.error('type: ' + typeof(msg))
 
-        //logger.error('index: ' + ignoredTypes.indexOf(msg['eType']))
         if (ignoredTypes.indexOf(i['eType']) !== -1) continue
         //logger.error(`  >>>> work!! (from lean): ${i}`);
 		logger.error('<<work>>: ' + JSON.stringify(i))
+        this.pushToClients(i)
       }
     }
 }
@@ -134,6 +173,6 @@ class Consumer {
 const getMethodsNames = function (obj = this) {
     return Object.keys(obj)
         .filter((key) => typeof obj[key] === 'function');
-}
+};
 
 export default Consumer

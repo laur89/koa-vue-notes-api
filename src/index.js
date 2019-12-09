@@ -15,11 +15,13 @@ import userActionsRouter from './routes/userActions.js'
 import notesRouter from './routes/notes.js'
 
 
-// ZMQ:
-new Consumer().start()
-
 //Initialize app
 const app = new Koa()
+
+//app.listen(4000);  // _if_ we're starting listening from here not from app.js
+
+// ZMQ:
+new Consumer(app.callback()).start()
 
 //Here's the rate limiter
 app.use(
