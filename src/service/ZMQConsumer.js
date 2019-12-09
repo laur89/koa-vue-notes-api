@@ -4,7 +4,8 @@ import http from 'http';
 import { Chart } from '../models/Chart.js'
 import { User } from '../models/User.js'
 import zmq from 'zeromq'
-import io from "socket.io"
+//import io from "socket.io"
+import IO from 'koa-socket'
 
 //import ioClient from 'socket.io-client'
 //import http from 'http';
@@ -99,9 +100,7 @@ const chartSchema = joi.object({
 const ignoredTypes = ['Debug'];
 class Consumer {
     constructor(app) {
-        const server = http.createServer(app);  // form https://github.com/socketio/socket.io
-        //const server = http.Server(app);
-        this.ioSock = io(server, {
+        const io = new IO({ioOptions:{
             path: '/sock',
             serveClient: false,
             // below are engine.IO options
@@ -109,24 +108,16 @@ class Consumer {
             //transports: ['websocket'],
             pingTimeout: 5000,
             cookie: 'sock-hndshk-sid'
-        }) //.of('/sock');
-        //this.ioSock = io.listen(server)
+        }})
+        io.attach( app )
 
-        // TODO consider namespaces: https://socket.io/docs/rooms-and-namespaces/
-        //const nsp = this.ioSock.of('/sock');
-        //nsp.on('connection', function(socket) {
-        //    logger.info('  >>>>> a user connected on our namespace!');
-        //})
 
-        //console.log('yyyy sockets.emit:' + JSON.stringify(typeof this.ioSock.sockets.emit))
-        //console.log('zzzz sockets.emit:' + JSON.stringify(typeof this.ioSock.emit))
-
-        // Receiving connection to SocketIO:
-        this.ioSock.on('connection', function(socket) {
+        // The raw socket.io instance is attached as app._io if you need it
+        app._io.on( 'connection', sock => {
             logger.info('  >>>>> a user connected!');
         })
 
-        server.listen(4001)
+
     }
 
     //see also there guys from:    https://socket.io/docs/emit-cheatsheet/

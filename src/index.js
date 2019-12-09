@@ -21,7 +21,7 @@ const app = new Koa()
 //app.listen(4000);  // _if_ we're starting listening from here not from app.js
 
 // ZMQ:
-new Consumer(app.callback()).start()
+new Consumer(app).start()
 
 //Here's the rate limiter
 app.use(
