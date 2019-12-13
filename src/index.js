@@ -9,6 +9,7 @@ import error from 'koa-json-error'
 import ratelimit from 'koa-ratelimit'
 import redis from 'ioredis'
 import Consumer from './service/ZMQConsumer.js'
+import Sock from './service/SocketServer.js'
 
 //Routes
 import userActionsRouter from './routes/userActions.js'
@@ -16,12 +17,14 @@ import notesRouter from './routes/notes.js'
 
 
 //Initialize app
-const app = new Koa()
+const app = new Koa();
 
 //app.listen(4000);  // _if_ we're starting listening from here not from app.js
 
-// ZMQ:
-new Consumer(app.callback()).start()
+// ioSocket & ZMQ:
+const socket = new Sock(app.callback());
+new Consumer(socket).start();
+//socket.startPlayback();  // replay our mock data
 
 //Here's the rate limiter
 app.use(
