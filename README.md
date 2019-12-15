@@ -130,6 +130,7 @@ The `knexfile.js` in the root of the project is all setup with the ability to re
 TLDR db init:
 
 - connect to container from host: `mysql -u root --password --protocol=TCP [--port=3306]`
+  - note db password is in our `.env` file
 - `CREATE DATABASE koa_vue_notes_development;`
 - `CREATE DATABASE koa_vue_notes_testing;`
 - exit db cli client w/ `exit`

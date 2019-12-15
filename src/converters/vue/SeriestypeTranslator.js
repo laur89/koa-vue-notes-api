@@ -1,4 +1,4 @@
-import logger from '../logs/log.js'
+import logger from '../../logs/log.js'
 
 function t(type) {
     switch (type) {
@@ -19,7 +19,7 @@ function t(type) {
         case 7:
             return 'Treemap';
         default:
-            throw new Error("unsupported LEAN SeriesType " + type);
+            throw new Error(`unsupported LEAN SeriesType ${type}`);
     }
 }
 

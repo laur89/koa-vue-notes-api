@@ -1,5 +1,6 @@
 import logger from '../logs/log.js'
-import sTypeTrans from '../converters/SeriestypeTranslator.js'
+import sTypeTrans from '../converters/vue/SeriestypeTranslator.js'
+//import chartConverter from '../converters/vue/ChartConverter.js'
 
 import { Chart } from '../models/Chart.js'
 import { User } from '../models/User.js'
@@ -136,7 +137,7 @@ class Consumer {
             pushToClients(this.ioSock.getSocket(), i);
 
             if (t === 'SystemDebug') {
-                logger.error('FIN???');
+                logger.error('FIN algo');
 
                 logger.debug(msgTypes);
                 msgTypes.clear();
