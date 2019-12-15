@@ -1,4 +1,5 @@
 import logger from '../logs/log.js'
+import sTypeTrans from '../converters/SeriestypeTranslator.js'
 
 import { Chart } from '../models/Chart.js'
 import { User } from '../models/User.js'
@@ -86,6 +87,10 @@ const pushToClients = (ioSock, data) => {
 }
 
 const ignoredTypes = ['Debug'];
+const msgTypes = new Map();
+const eTypeToHasChartsCount = new Map();
+const hasores = new Map();
+const charts = new Map();
 
 class Consumer {
     constructor(ioSock) {
@@ -93,25 +98,56 @@ class Consumer {
     }
 
     async start() {
-      const sock = new zmq.Pull
+        const sock = new zmq.Pull();
 
-      sock.connect(`tcp://${leanConf.host}:${leanConf.port}`)
-      logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
+        sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
+        logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-      let i
-      for await (const [msg] of sock) {
-          // Throw away the Topic of your received String by cutting off the first 4 bytes ('rand') (assuming 'rand' was our topic)
-          //data = data.toString().slice(4)
+        let i, t;
+        for await (const [msg] of sock) {
+            // Throw away the Topic of your received String by cutting off the first 4 bytes ('rand') (assuming 'rand' was our topic)
+            //data = data.toString().slice(4)
 
-        i = JSON.parse(msg)
-        //console.log("work: %s", msg.toString())
-        //logger.error('type: ' + typeof(msg))
+            i = JSON.parse(msg);
+            t = i['eType'];
+            msgTypes.set(t, msgTypes.has(t) ? msgTypes.get(t) + 1 : 1);
 
-        if (ignoredTypes.indexOf(i['eType']) !== -1) continue
-        //logger.error(`  >>>> work!! (from lean): ${i}`);
-		logger.error('<<work>>: ' + JSON.stringify(i))
-        pushToClients(this.ioSock.getSocket(), i)
-      }
+            if (ignoredTypes.includes(t)) {
+                continue;
+            } else if (i.hasOwnProperty('oResults')) {
+                hasores.set(t, hasores.has(t) ? hasores.get(t) + 1 : 1);
+
+                if (!i['oResults'].hasOwnProperty('Charts')) continue;
+                eTypeToHasChartsCount.set(t, eTypeToHasChartsCount.has(t) ? eTypeToHasChartsCount.get(t) + 1 : 1);
+
+                let charts_ = i['oResults']['Charts'];
+                for (const chartName in charts_) {
+                    chartName && charts.set(chartName, charts.has(chartName) ? charts.get(chartName) + 1 : 1);
+                    //logger.error(`chart ${chartName} seriestype: ${sTypeTrans(1)}`)
+                    let c = charts_[chartName];
+                    let series = c['Series'];
+                    for (const seriesName in series) {
+                        let s = series[seriesName];
+                        logger.debug(`chart [${chartName}]:series [${s['Name']}] type: [${sTypeTrans(s['SeriesType'])}]`)
+                    }
+                }
+            }
+
+            pushToClients(this.ioSock.getSocket(), i);
+
+            if (t === 'SystemDebug') {
+                logger.error('FIN???');
+
+                logger.debug(msgTypes);
+                msgTypes.clear();
+                logger.debug(eTypeToHasChartsCount);
+                eTypeToHasChartsCount.clear();
+                logger.debug(hasores);
+                hasores.clear();
+                logger.debug(charts);
+                charts.clear();
+            }
+        }
     }
 }
 
