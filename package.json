@@ -43,30 +43,14 @@
     "randexp": "^0.5.3"
   },
   "devDependencies": {
-    "@babel/cli": "^7.0.0",
-    "@babel/core": "^7.0.0",
-    "@babel/preset-env": "^7.7.0",
-    "core-js": "^3.4.5",
+    "@babel/cli": "^7.7.7",
+    "@babel/core": "^7.7.7",
+    "@babel/plugin-proposal-class-properties": "^7.7.4",
+    "@babel/preset-env": "^7.7.7",
+    "core-js": "^3.6.1",
     "cross-env": "^6.0.0",
     "nodemon": "^2.0.1",
     "prettier": "^1.13.4"
-  },
-  "babel": {
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "targets": {
-            "node": true
-          },
-          "useBuiltIns": "usage",
-          "corejs": {
-            "version": 3,
-            "proposals": true
-          }
-        }
-      ]
-    ]
   },
   "keywords": [
     "koa",
