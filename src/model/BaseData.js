@@ -12,33 +12,52 @@ export default class BaseData {
         this.DailyResolution = [Resolution.Daily];
         this.MinuteResolution = [Resolution.Minute];
         this.DataType = MarketDataType.Base;
-        this.IsFillForward = false; // TODO: ok to default to false?
-        this._time = null; // TODO ok to default to null?
+        this._isFillFwd = false;
+
+        /// <summary>
+        /// Current time marker of this data packet.
+        /// </summary>
+        /// <remarks>All data is timeseries based.</remarks>
+        this.Time = null; // TODO ok to default to null?
+
+        /// <summary>
+        /// Symbol representation for underlying Security
+        /// </summary>
         this.Symbol = ''; // TODO: defaults to Symbol.Empty;
     }
 
     /// <summary>
-    /// Current time marker of this data packet.
+    /// True if this is a fill forward piece of data
+    /// Note we don't define setter - that should not be public.
     /// </summary>
-    /// <remarks>All data is timeseries based.</remarks>
-    set Time(value) {
-        this._time = value;
+    get IsFillForward() {
+        return this._isFillFwd;
     }
-    get Time() {
-        return this._time;
+
+    /// <summary>
+    /// The end time of this data. Some data covers spans (trade bars) and as such we want
+    /// to know the entire time span covered
+    /// </summary>
+    get EndTime() {
+        return this.Time;
     }
     set EndTime(value) {
-        this._time = value;
+        this.Time = value;
     }
-    get EndTime() {
-        return this._time;
+
+    /// <summary>
+    /// Value representation of this data packet. All data requires a representative value for this moment in time.
+    /// For streams of data this is the price now, for OHLC packets this is the closing price.
+    /// </summary>
+    get Value() {
+        return this._value;
     }
     set Value(value) {
         this._value = value;
     }
-    get Value() {
-        return this._value;
-    }
+    /// <summary>
+    /// As this is a backtesting platform we'll provide an alias of value as price.
+    /// </summary>
     get Price() {
         return this._value;
     }
