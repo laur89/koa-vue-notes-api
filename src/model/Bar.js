@@ -12,4 +12,25 @@ export default class Bar {
         this.Low = l;
         this.Close = c;
     }
+
+    /// <summary>
+    /// Updates the bar with a new value. This will aggregate the OHLC bar
+    /// </summary>
+    /// <param name="value">The new value</param>
+    Update(value) {
+        // Do not accept zero as a new value
+        if (value === 0) return;
+
+        if (this.Open === 0) this.Open = this.High = this.Low = this.Close = value;
+        if (value > this.High) this.High = value;
+        if (value < this.Low) this.Low = value;
+        this.Close = value;
+    }
+
+    /// <summary>
+    /// Returns a clone of this bar
+    /// </summary>
+    Clone() {
+        return new Bar(this.Open, this.High, this.Low, this.Close);
+    }
 }
