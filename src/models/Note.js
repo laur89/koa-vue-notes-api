@@ -1,19 +1,19 @@
-import db from '../db/db.js'
-import rand from 'randexp'
+import db from '../db/db.js';
+import rand from 'randexp';
 
 // here the actual db calls are performed
 class Note {
     constructor(data) {
-        if (!data) return
-        this._assign(data)
+        if (!data) return;
+        this._assign(data);
     }
 
     _assign(data) {
-        this.id = data.id
-        this.userId = data.userId
-        this.title = data.title
-        this.content = data.content
-        this.ipAddress = data.ipAddress
+        this.id = data.id;
+        this.userId = data.userId;
+        this.title = data.title;
+        this.content = data.content;
+        this.ipAddress = data.ipAddress;
     }
 
     async all(request) {
@@ -28,30 +28,30 @@ class Note {
                 )
                 .orderBy('createdAt', request.order)
                 .offset(+request.page * +request.limit)
-                .limit(+request.limit)
+                .limit(+request.limit);
         } catch (error) {
-            console.log(error)
-            throw new Error('ERROR')
+            console.log(error);
+            throw new Error('ERROR');
         }
     }
 
     async find(id) {
         try {
-            let result = await findById(id)
-            if (!result) return {}
-            this._assign(result)
+            let result = await findById(id);
+            if (!result) return {};
+            this._assign(result);
         } catch (error) {
-            console.log(error)
-            throw new Error('ERROR')
+            console.log(error);
+            throw new Error('ERROR');
         }
     }
 
     async store() {
         try {
-            return await db('notes').insert(this)
+            return await db('notes').insert(this);
         } catch (error) {
-            console.log(error)
-            throw new Error('ERROR')
+            console.log(error);
+            throw new Error('ERROR');
         }
     }
 
@@ -59,10 +59,10 @@ class Note {
         try {
             return await db('notes')
                 .update(this)
-                .where({ id: this.id })
+                .where({ id: this.id });
         } catch (error) {
-            console.log(error)
-            throw new Error('ERROR')
+            console.log(error);
+            throw new Error('ERROR');
         }
     }
 
@@ -70,10 +70,10 @@ class Note {
         try {
             return await db('notes')
                 .delete()
-                .where({ id: this.id })
+                .where({ id: this.id });
         } catch (error) {
-            console.log(error)
-            throw new Error('ERROR')
+            console.log(error);
+            throw new Error('ERROR');
         }
     }
 }
@@ -82,12 +82,12 @@ async function findById(id) {
     try {
         let [noteData] = await db('notes')
             .select('id', 'userId', 'title', 'content')
-            .where({ id: id })
-        return noteData
+            .where({ id: id });
+        return noteData;
     } catch (error) {
-        console.log(error)
-        throw new Error('ERROR')
+        console.log(error);
+        throw new Error('ERROR');
     }
 }
 
-export { Note, findById }
+export { Note, findById };

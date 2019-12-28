@@ -1,5 +1,5 @@
 //import logger from '../logs/log.js'
-import Data from '../static-data/data.js'
+import Data from '../static-data/data.js';
 
 /**
  * Returns an array with arrays of the given size.
@@ -24,32 +24,32 @@ class Mock {
 
     prepStaticData(chunkSize) {
         const p = {
-            "ohlcv": [],
-            "onchart": [
+            ohlcv: [],
+            onchart: [
                 {
-                    "name": "EMA, 25",
-                    "type": "EMA",
-                    "data": [],
-                    "settings": {}
+                    name: 'EMA, 25',
+                    type: 'EMA',
+                    data: [],
+                    settings: {},
                 },
                 {
-                    "name": "EMA, 43",
-                    "type": "EMA",
-                    "data": [],
-                    "settings": {}
-                }
+                    name: 'EMA, 43',
+                    type: 'EMA',
+                    data: [],
+                    settings: {},
+                },
             ],
-            "offchart": [
+            offchart: [
                 {
-                    "name": "RSI, 20",
-                    "type": "RSI",
-                    "data": [],
-                    "settings": {
-                        "upper": 70,
-                        "lower": 30
-                    }
-                }
-            ]
+                    name: 'RSI, 20',
+                    type: 'RSI',
+                    data: [],
+                    settings: {
+                        upper: 70,
+                        lower: 30,
+                    },
+                },
+            ],
         };
 
         this.ohlcv = chunkArray(Data.ohlcv, chunkSize);
@@ -61,11 +61,19 @@ class Mock {
     }
 
     getNextSegment() {
-        if (this.ohlcv.length || this.ema25.length || this.ema43.length || this.offchart.length) {
+        if (
+            this.ohlcv.length ||
+            this.ema25.length ||
+            this.ema43.length ||
+            this.offchart.length
+        ) {
             this.ohlcv.length && this.payload.ohlcv.push(...this.ohlcv.shift());
-            this.ema25.length && this.payload.onchart[0].data.push(...this.ema25.shift());
-            this.ema43.length && this.payload.onchart[1].data.push(...this.ema43.shift());
-            this.offchart.length && this.payload.offchart[0].data.push(...this.offchart.shift());
+            this.ema25.length &&
+                this.payload.onchart[0].data.push(...this.ema25.shift());
+            this.ema43.length &&
+                this.payload.onchart[1].data.push(...this.ema43.shift());
+            this.offchart.length &&
+                this.payload.offchart[0].data.push(...this.offchart.shift());
 
             return this.payload;
         }
@@ -74,4 +82,4 @@ class Mock {
     }
 }
 
-export default Mock
+export default Mock;

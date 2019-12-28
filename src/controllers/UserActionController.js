@@ -1,12 +1,12 @@
-import db from '../db/db.js'
-import joi from 'joi'
-import rand from 'randexp'
-import bcrypt from 'bcrypt'
-import jsonwebtoken from 'jsonwebtoken'
-import fse from 'fs-extra'
-import sgMail from '@sendgrid/mail'
-import d from 'date-fns'
-sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+import db from '../db/db.js';
+import joi from 'joi';
+import rand from 'randexp';
+import bcrypt from 'bcrypt';
+import jsonwebtoken from 'jsonwebtoken';
+import fse from 'fs-extra';
+import sgMail from '@sendgrid/mail';
+import d from 'date-fns';
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const userSchemaSignup = joi.object({
     firstName: joi
@@ -36,7 +36,7 @@ const userSchemaSignup = joi.object({
         .min(8)
         .max(35)
         .required(),
-})
+});
 
 const userSchemaResetPassword = joi.object({
     email: joi
@@ -49,7 +49,7 @@ const userSchemaResetPassword = joi.object({
         .max(35)
         .required(),
     passwordResetToken: joi.string().required(),
-})
+});
 
 class UserController {
     constructor() {}
@@ -58,12 +58,12 @@ class UserController {
         //First let's save off the ctx.request.body. Throughout this project
         //we're going to try and avoid using the ctx.request.body and instead use
         //our own object that is seeded by the ctx.request.body initially
-        const request = ctx.request.body
+        const request = ctx.request.body;
 
         //Next do validation on the input
-        const validator = joi.validate(request, userSchemaSignup)
+        const validator = joi.validate(request, userSchemaSignup);
         if (validator.error) {
-            ctx.throw(400, validator.error.details[0].message)
+            ctx.throw(400, validator.error.details[0].message);
         }
 
         //Now let's check for a duplicate username
@@ -71,9 +71,9 @@ class UserController {
             .where({
                 username: request.username,
             })
-            .count('id as id')
+            .count('id as id');
         if (result.id) {
-            ctx.throw(400, 'DUPLICATE_USERNAME')
+            ctx.throw(400, 'DUPLICATE_USERNAME');
         }
 
         //..and duplicate email
@@ -81,30 +81,30 @@ class UserController {
             .where({
                 email: request.email,
             })
-            .count('id as id')
+            .count('id as id');
         if (result.id) {
-            ctx.throw(400, 'DUPLICATE_EMAIL')
+            ctx.throw(400, 'DUPLICATE_EMAIL');
         }
 
         //Now let's generate a token for this user
-        request.token = await this.generateUniqueToken()
+        request.token = await this.generateUniqueToken();
 
         //Ok now let's hash their password.
         try {
-            request.password = await bcrypt.hash(request.password, 12)
+            request.password = await bcrypt.hash(request.password, 12);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Let's grab their ipaddress
         //TODO: This doesn't work correctly because of the reverse-proxy
-        request.ipAddress = ctx.request.ip
+        request.ipAddress = ctx.request.ip;
 
         //Ok, at this point we can sign them up.
         try {
             var [result] = await db('users')
                 .insert(request)
-                .returning('id')
+                .returning('id');
 
             //Let's send a welcome email.
             if (process.env.NODE_ENV !== 'testing') {
@@ -128,17 +128,17 @@ class UserController {
             }
 
             //And return our response.
-            ctx.body = { message: 'SUCCESS', id: result }
+            ctx.body = { message: 'SUCCESS', id: result };
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
     }
 
     async authenticate(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
 
         if (!request.username || !request.password) {
-            ctx.throw(404, 'INVALID_DATA')
+            ctx.throw(404, 'INVALID_DATA');
         }
 
         //Let's find that user
@@ -146,9 +146,9 @@ class UserController {
             .where({
                 username: request.username,
             })
-            .select('id', 'token', 'username', 'email', 'password', 'isAdmin')
+            .select('id', 'token', 'username', 'email', 'password', 'isAdmin');
         if (!userData) {
-            ctx.throw(401, 'INVALID_CREDENTIALS')
+            ctx.throw(401, 'INVALID_CREDENTIALS');
         }
 
         //Now let's check the password
@@ -156,17 +156,17 @@ class UserController {
             let correct = await bcrypt.compare(
                 request.password,
                 userData.password
-            )
+            );
             if (!correct) {
-                ctx.throw(400, 'INVALID_CREDENTIALS')
+                ctx.throw(400, 'INVALID_CREDENTIALS');
             }
         } catch (error) {
-            console.log('here', error)
-            ctx.throw(400, 'INVALID_DATA')
+            console.log('here', error);
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Let's get rid of that password now for security reasons
-        delete userData.password
+        delete userData.password;
 
         //Generate the refreshToken data
         let refreshTokenData = {
@@ -181,22 +181,22 @@ class UserController {
             ipAddress: ctx.request.ip,
             expiration: d.addMonths(new Date(), 1),
             isValid: true,
-        }
+        };
 
         //Insert the refresh data into the db
         try {
-            await db('refresh_tokens').insert(refreshTokenData)
+            await db('refresh_tokens').insert(refreshTokenData);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Update their login count
         try {
             await db('users')
                 .increment('loginCount')
-                .where({ id: userData.id })
+                .where({ id: userData.id });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Ok, they've made it, send them their jsonwebtoken with their data, accessToken and refreshToken
@@ -204,17 +204,17 @@ class UserController {
             { data: userData },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME }
-        )
+        );
         ctx.body = {
             accessToken: token,
             refreshToken: refreshTokenData.refreshToken,
-        }
+        };
     }
 
     async refreshAccessToken(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
         if (!request.username || !request.refreshToken) {
-            ctx.throw(401, 'NO_REFRESH_TOKEN')
+            ctx.throw(401, 'NO_REFRESH_TOKEN');
         }
 
         //Let's find that user and refreshToken in the refreshToken table
@@ -224,18 +224,18 @@ class UserController {
                 username: request.username,
                 refreshToken: request.refreshToken,
                 isValid: true,
-            })
+            });
         if (!refreshTokenDatabaseData) {
-            ctx.throw(400, 'INVALID_REFRESH_TOKEN')
+            ctx.throw(400, 'INVALID_REFRESH_TOKEN');
         }
 
         //Let's make sure the refreshToken is not expired
         const refreshTokenIsValid = d.compareAsc(
             new Date(),
             refreshTokenDatabaseData.expiration
-        )
+        );
         if (refreshTokenIsValid !== -1) {
-            ctx.throw(400, 'REFRESH_TOKEN_EXPIRED')
+            ctx.throw(400, 'REFRESH_TOKEN_EXPIRED');
         }
 
         //Ok, everthing checked out. So let's invalidate the refresh token they just confirmed, and get them hooked up with a new one.
@@ -245,16 +245,16 @@ class UserController {
                     isValid: false,
                     updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
-                .where({ refreshToken: refreshTokenDatabaseData.refreshToken })
+                .where({ refreshToken: refreshTokenDatabaseData.refreshToken });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA1')
+            ctx.throw(400, 'INVALID_DATA1');
         }
 
         const [userData] = await db('users')
             .select('id', 'token', 'username', 'email', 'isAdmin')
-            .where({ username: request.username })
+            .where({ username: request.username });
         if (!userData) {
-            ctx.throw(401, 'INVALID_REFRESH_TOKEN')
+            ctx.throw(401, 'INVALID_REFRESH_TOKEN');
         }
 
         //Generate the refreshToken data
@@ -270,13 +270,13 @@ class UserController {
             ipAddress: ctx.request.ip,
             expiration: d.addMonths(new Date(), 1),
             isValid: true,
-        }
+        };
 
         //Insert the refresh data into the db
         try {
-            await db('refresh_tokens').insert(refreshTokenData)
+            await db('refresh_tokens').insert(refreshTokenData);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Ok, they've made it, send them their jsonwebtoken with their data, accessToken and refreshToken
@@ -284,32 +284,32 @@ class UserController {
             { data: userData },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME }
-        )
+        );
         ctx.body = {
             accessToken: token,
             refreshToken: refreshTokenData.refreshToken,
-        }
+        };
     }
 
     async invalidateAllRefreshTokens(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
         try {
             await db('refresh_tokens')
                 .update({
                     isValid: false,
                     updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
-                .where({ username: request.username })
-            ctx.body = { message: 'SUCCESS' }
+                .where({ username: request.username });
+            ctx.body = { message: 'SUCCESS' };
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
     }
 
     async invalidateRefreshToken(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
         if (!request.refreshToken) {
-            ctx.throw(404, 'INVALID_DATA')
+            ctx.throw(404, 'INVALID_DATA');
         }
         try {
             await db('refresh_tokens')
@@ -320,46 +320,46 @@ class UserController {
                 .where({
                     username: ctx.state.user.username,
                     refreshToken: request.refreshToken,
-                })
-            ctx.body = { message: 'SUCCESS' }
+                });
+            ctx.body = { message: 'SUCCESS' };
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
     }
 
     async forgot(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
 
         if (!request.email || !request.url || !request.type) {
-            ctx.throw(404, 'INVALID_DATA')
+            ctx.throw(404, 'INVALID_DATA');
         }
 
         let resetData = {
             passwordResetToken: new rand(/[a-zA-Z0-9_-]{64,64}/).gen(),
             passwordResetExpiration: d.addMinutes(new Date(), 30),
-        }
+        };
 
         try {
             var result = await db('users')
                 .update(resetData)
                 .where({ email: request.email })
-                .returning('id')
+                .returning('id');
             if (!result) {
-                ctx.throw(400, 'INVALID_DATA')
+                ctx.throw(400, 'INVALID_DATA');
             }
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Now for the email if they've chosen the web type of forgot password
         if (request.type === 'web') {
-            let email = await fse.readFile('./src/email/forgot.html', 'utf8')
+            let email = await fse.readFile('./src/email/forgot.html', 'utf8');
             let resetUrlCustom =
                 request.url +
                 '?passwordResetToken=' +
                 resetData.passwordResetToken +
                 '&email=' +
-                request.email
+                request.email;
 
             const emailData = {
                 to: request.email,
@@ -372,22 +372,22 @@ class UserController {
                     email: request.email,
                     resetUrl: resetUrlCustom,
                 },
-            }
+            };
 
             // Let's only send the email if we're not testing
             if (process.env.NODE_ENV !== 'testing') {
-                await sgMail.send(emailData)
+                await sgMail.send(emailData);
             }
         }
 
-        ctx.body = { passwordResetToken: resetData.passwordResetToken }
+        ctx.body = { passwordResetToken: resetData.passwordResetToken };
     }
 
     async checkPasswordResetToken(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
 
         if (!request.passwordResetToken || !request.email) {
-            ctx.throw(404, 'INVALID_DATA')
+            ctx.throw(404, 'INVALID_DATA');
         }
 
         let [passwordResetData] = await db('users')
@@ -395,30 +395,30 @@ class UserController {
             .where({
                 email: request.email,
                 passwordResetToken: request.passwordResetToken,
-            })
+            });
         if (!passwordResetData.passwordResetExpiration) {
-            ctx.throw(404, 'INVALID_TOKEN')
+            ctx.throw(404, 'INVALID_TOKEN');
         }
 
         //Let's make sure the refreshToken is not expired
         var tokenIsValid = d.compareAsc(
             new Date(),
             passwordResetData.passwordResetExpiration
-        )
+        );
         if (tokenIsValid !== -1) {
-            ctx.throw(400, 'RESET_TOKEN_EXPIRED')
+            ctx.throw(400, 'RESET_TOKEN_EXPIRED');
         }
 
-        ctx.body = { message: 'SUCCESS' }
+        ctx.body = { message: 'SUCCESS' };
     }
 
     async resetPassword(ctx) {
-        const request = ctx.request.body
+        const request = ctx.request.body;
 
         //First do validation on the input
-        const validator = joi.validate(request, userSchemaResetPassword)
+        const validator = joi.validate(request, userSchemaResetPassword);
         if (validator.error) {
-            ctx.throw(400, validator.error.details[0].message)
+            ctx.throw(400, validator.error.details[0].message);
         }
 
         //Ok, let's make sure their token is correct again, just to be sure since it could have
@@ -428,31 +428,31 @@ class UserController {
             .where({
                 email: request.email,
                 passwordResetToken: request.passwordResetToken,
-            })
+            });
         if (!passwordResetData.passwordResetExpiration) {
-            ctx.throw(404, 'INVALID_TOKEN')
+            ctx.throw(404, 'INVALID_TOKEN');
         }
 
         var tokenIsValid = d.compareAsc(
             new Date(),
             passwordResetData.passwordResetExpiration
-        )
+        );
         if (tokenIsValid !== -1) {
-            ctx.throw(400, 'RESET_TOKEN_EXPIRED')
+            ctx.throw(400, 'RESET_TOKEN_EXPIRED');
         }
 
         //Ok, so we're good. Let's reset their password with the new one they submitted.
 
         //Hash it
         try {
-            request.password = await bcrypt.hash(request.password, 12)
+            request.password = await bcrypt.hash(request.password, 12);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Make sure to null out the password reset token and expiration on insertion
-        request.passwordResetToken = null
-        request.passwordResetExpiration = null
+        request.passwordResetToken = null;
+        request.passwordResetExpiration = null;
         try {
             await db('users')
                 .update({
@@ -460,25 +460,25 @@ class UserController {
                     passwordResetToken: request.passwordResetToken,
                     passwordResetExpiration: request.passwordResetExpiration,
                 })
-                .where({ email: request.email })
+                .where({ email: request.email });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA')
+            ctx.throw(400, 'INVALID_DATA');
         }
-        ctx.body = { message: 'SUCCESS' }
+        ctx.body = { message: 'SUCCESS' };
     }
 
     async private(ctx) {
-        ctx.body = { user: ctx.state.user }
+        ctx.body = { user: ctx.state.user };
     }
 
     //Helpers
     async generateUniqueToken() {
-        let token = new rand(/[a-zA-Z0-9_-]{7,7}/).gen()
+        let token = new rand(/[a-zA-Z0-9_-]{7,7}/).gen();
 
         if (await this.checkUniqueToken(token)) {
-            await this.generateUniqueToken()
+            await this.generateUniqueToken();
         } else {
-            return token
+            return token;
         }
     }
 
@@ -487,12 +487,12 @@ class UserController {
             .where({
                 token: token,
             })
-            .count('id as id')
+            .count('id as id');
         if (result[0].id) {
-            return true
+            return true;
         }
-        return false
+        return false;
     }
 }
 
-export default UserController
+export default UserController;

@@ -1,9 +1,8 @@
 // based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
-import NotImplementedException from '../exceptions/NotImplementedException';
-import ArgumentNullException from '../exceptions/ArgumentNullException';
+import NotImplementedException from '../exceptions/NotImplementedException.js';
+import ArgumentNullException from '../exceptions/ArgumentNullException.js';
 
 export default class DataConsolidator {
-
     constructor() {
         /// <summary>
         /// Event handler that fires when a new piece of data is produced
@@ -18,13 +17,12 @@ export default class DataConsolidator {
         this.Consolidated = null;
     }
 
-
     /// <summary>
     /// ABSTRACT
     /// Scans this consolidator to see if it should emit a bar due to time passing
     /// </summary>
     /// <param name="currentLocalTime">The current time in the local time zone (same as <see cref="BaseData.Time"/>)</param>
-    Scan(currentLocalTime) {};
+    Scan(currentLocalTime) {}
 
     /// <summary>
     /// ABSTRACT
@@ -35,7 +33,8 @@ export default class DataConsolidator {
     /// <summary>
     /// Gets the type consumed by this consolidator
     /// </summary>
-    InputType() {   // TODO: how to do this in js?
+    InputType() {
+        // TODO: how to do this in js?
     }
 
     /// <summary>
@@ -59,7 +58,9 @@ export default class DataConsolidator {
     /// <param name="consolidated">The newly consolidated data</param>
     OnDataConsolidated(consolidated) {
         if (this.DataConsolidated.length !== 0) {
-            this.DataConsolidated.forEach(handler => handler(this, consolidated));
+            this.DataConsolidated.forEach(handler =>
+                handler(this, consolidated)
+            );
         }
 
         // assign the Consolidated property after the event handlers are fired,

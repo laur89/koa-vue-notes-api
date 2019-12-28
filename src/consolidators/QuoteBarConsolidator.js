@@ -1,8 +1,8 @@
 // based on LEAN's Common/Data/Consolidators/QuoteBarConsolidator.cs
-import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase';
+import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
+import QuoteBar from '../model/QuoteBar.js';
 
 export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
-
     constructor(timeSpan) {
         super(timeSpan);
     }
@@ -19,23 +19,32 @@ export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
         let ask = data.Ask;
 
         if (workingBar === null) {
-            workingBar = new QuoteBar {
-                Symbol = data.Symbol,
-                Time = this.GetRoundedBarTime(data.Time),
-                Bid = bid == null ? null : bid.Clone(),
-                Ask = ask == null ? null : ask.Clone(),
-                Period = (this.IsTimeBased() && this._period !== null) ? this._period : data.Period
-            };
+            workingBar = new QuoteBar(
+                (symbol = data.Symbol),
+                (time = this.GetRoundedBarTime(data.Time)),
+                (bid = bid == null ? null : bid.Clone()),
+                (ask = ask == null ? null : ask.Clone()),
+                (period =
+                    this.IsTimeBased() && this._period !== null
+                        ? this._period
+                        : data.Period)
+            );
         }
 
         // update the bid and ask
         if (bid !== null) {
             workingBar.LastBidSize = data.LastBidSize;
             if (workingBar.Bid == null) {
-                workingBar.Bid = new Bar(bid.Open, bid.High, bid.Low, bid.Close);
+                workingBar.Bid = new Bar(
+                    bid.Open,
+                    bid.High,
+                    bid.Low,
+                    bid.Close
+                );
             } else {
                 workingBar.Bid.Close = bid.Close;
-                if (workingBar.Bid.High < bid.High) workingBar.Bid.High = bid.High;
+                if (workingBar.Bid.High < bid.High)
+                    workingBar.Bid.High = bid.High;
                 if (workingBar.Bid.Low > bid.Low) workingBar.Bid.Low = bid.Low;
             }
         }
@@ -43,10 +52,16 @@ export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
         if (ask !== null) {
             workingBar.LastAskSize = data.LastAskSize;
             if (workingBar.Ask === null) {
-                workingBar.Ask = new Bar(ask.Open, ask.High, ask.Low, ask.Close);
+                workingBar.Ask = new Bar(
+                    ask.Open,
+                    ask.High,
+                    ask.Low,
+                    ask.Close
+                );
             } else {
                 workingBar.Ask.Close = ask.Close;
-                if (workingBar.Ask.High < ask.High) workingBar.Ask.High = ask.High;
+                if (workingBar.Ask.High < ask.High)
+                    workingBar.Ask.High = ask.High;
                 if (workingBar.Ask.Low > ask.Low) workingBar.Ask.Low = ask.Low;
             }
         }

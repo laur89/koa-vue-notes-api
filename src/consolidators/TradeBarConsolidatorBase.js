@@ -1,10 +1,11 @@
 // based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
 import InvalidOperationException from '../exceptions/InvalidOperationException.js';
-import DataConsolidator from './DataConsolidator.js';
+import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
 import QuoteBar from '../model/QuoteBar.js';
 import TradeBar from '../model/TradeBar.js';
 
-export default class PeriodCountConsolidatorBase extends DataConsolidator {
+// TODO: haven't done _anything_ here yet, consider deprecating/removing this class!
+export default class TradeBarConsolidatorBase extends PeriodCountConsolidatorBase {
     constructor(timeSpan) {
         super();
         this.setMembers();
@@ -43,7 +44,11 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         if (this.symbol === null) {
             this.symbol = data.Symbol;
         } else if (this.symbol !== data.Symbol) {
-            throw new InvalidOperationException(`Consolidators can only be used with a single symbol. The previous consolidated symbol (${this.symbol}) is not the same as in the current data (${data.Symbol}).`);
+            throw new InvalidOperationException(
+                `Consolidators can only be used with a single symbol. The previous consolidated symbol (${
+                    this.symbol
+                }) is not the same as in the current data (${data.Symbol}).`
+            );
         }
 
         if (!this.ShouldProcess(data)) {

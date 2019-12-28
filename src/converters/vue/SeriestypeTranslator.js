@@ -1,4 +1,4 @@
-import logger from '../../logs/log.js'
+import logger from '../../logs/log.js';
 
 function t(type) {
     switch (type) {
@@ -23,4 +23,4 @@ function t(type) {
     }
 }
 
-export default t
+export default t;

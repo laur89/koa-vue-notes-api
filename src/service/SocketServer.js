@@ -1,37 +1,34 @@
-import logger from '../logs/log.js'
+import logger from '../logs/log.js';
 import http from 'http';
 
-import { Chart } from '../models/Chart.js'
-import { User } from '../models/User.js'
-import zmq from 'zeromq'
-import io from 'socket.io'
-import Mock from './MockData.js'
+import { Chart } from '../models/Chart.js';
+import { User } from '../models/User.js';
+import zmq from 'zeromq';
+import io from 'socket.io';
+import Mock from './MockData.js';
 
 //import ioClient from 'socket.io-client'
 //import http from 'http';
 //import SocketIO from 'socket.io';
-import joi from 'joi'
+import joi from 'joi';
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
-  //path: '/chartsock',
-  //serveClient: false,
-  //// below are engine.IO options
-  //pingInterval: 10000,
-  //pingTimeout: 5000,
-  //cookie: false
+//path: '/chartsock',
+//serveClient: false,
+//// below are engine.IO options
+//pingInterval: 10000,
+//pingTimeout: 5000,
+//cookie: false
 //});
 //const io = ioClient({
-  //path: '/chartsock',
-  //serveClient: false,
-  //// below are engine.IO options
-  //pingInterval: 10000,
-  //pingTimeout: 5000,
-  //cookie: false
+//path: '/chartsock',
+//serveClient: false,
+//// below are engine.IO options
+//pingInterval: 10000,
+//pingTimeout: 5000,
+//cookie: false
 //})();
 //let c = io.attach(process.env.SOCK_PORT)
-
-
-
 
 //const ioSock = io(process.env.SOCK_PORT)
 //console.log('yyyy sockets.emit:' + JSON.stringify(typeof ioSock.sockets.emit))
@@ -45,7 +42,7 @@ const leanConf = {
 
 class Sock {
     constructor(app) {
-        const server = http.createServer(app);  // form https://github.com/socketio/socket.io
+        const server = http.createServer(app); // form https://github.com/socketio/socket.io
         this.ioSock = io(server, {
             path: '/sock',
             serveClient: false,
@@ -53,8 +50,8 @@ class Sock {
             pingInterval: 10000,
             //transports: ['websocket'],
             pingTimeout: 5000,
-            cookie: 'sock-hndshk-sid'
-        }) //.of('/sock');
+            cookie: 'sock-hndshk-sid',
+        }); //.of('/sock');
         //this.ioSock = io.listen(server)
 
         // TODO consider namespaces: https://socket.io/docs/rooms-and-namespaces/
@@ -70,7 +67,7 @@ class Sock {
             //i.sockets.emit('CHARTITO', payload);
         });
 
-        server.listen(4001)
+        server.listen(4001);
     }
 
     startPlayback() {
@@ -81,7 +78,7 @@ class Sock {
                 this.ioSock.sockets.emit('CHARTITO', next);
                 setTimeout(i, 1000);
             } else {
-                logger.info("end of mock data");
+                logger.info('end of mock data');
             }
         };
 
@@ -95,9 +92,8 @@ class Sock {
 }
 
 // Get the Object's methods names:
-const getMethodsNames = function (obj = this) {
-    return Object.keys(obj)
-        .filter((key) => typeof obj[key] === 'function');
+const getMethodsNames = function(obj = this) {
+    return Object.keys(obj).filter(key => typeof obj[key] === 'function');
 };
 
-export default Sock
+export default Sock;
