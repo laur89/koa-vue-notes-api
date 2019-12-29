@@ -1,9 +1,13 @@
-// based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
 import InvalidOperationException from '../exceptions/InvalidOperationException.js';
 import DataConsolidator from './DataConsolidator.js';
-import QuoteBar from '../model/QuoteBar.js';
 import TradeBar from '../model/TradeBar.js';
+import IDate from '../utils/IDate.js';
 
+/// Provides a base class for consolidators that emit data based on the passing of a period of time
+/// or after seeing a max count of data points.
+/// </summary>
+/// <typeparam name="T">The input type of the consolidator</typeparam>
+/// <typeparam name="TConsolidated">The output type of the consolidator</typeparam>
 export default class PeriodCountConsolidatorBase extends DataConsolidator {
     constructor(timeSpan) {
         super();
@@ -17,7 +21,7 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         // The symbol that we are consolidating for.
         this.symbol = null;
         //The number of data updates between creating new bars.
-        this._maxCount = null; // nullable in C#
+        this._maxCount = null; // nullable in C#; otherwise int
         //
         this._periodSpecification = null;
         //The minimum timespan between creating new bars.
@@ -27,7 +31,7 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         //The working bar used for aggregating the data
         this._workingBar = null;
         //The last time we emitted a consolidated bar
-        this._lastEmit = null; // nullable in C#
+        this._lastEmit = null; // nullable in C#, otherwise DateTime
     }
 
     /// <summary>
@@ -70,7 +74,7 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
 
         if (this._lastEmit === null) {
             // initialize this value for period computations
-            this._lastEmit = this.IsTimeBased() ? new Date(0) : data.Time;
+            this._lastEmit = this.IsTimeBased() ? new IDate(0) : data.Time;
         }
 
         if (this._period !== null) {
@@ -101,7 +105,7 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         //Fire the event
         if (fireDataConsolidated) {
             if (this._workingBar instanceof TradeBar) {
-                // note in C# we had to cast: "this._workingBar as TradeBar;"
+                // note in C# we had to cast: "var workingTradeBar = _workingBar as TradeBar;"
                 // we kind of are cheating here...
                 if (this._period !== null) {
                     this._workingBar.Period = this._period;
@@ -116,7 +120,7 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
             this._lastEmit =
                 this.IsTimeBased() && this._workingBar !== null
                     ? this._workingBar.Time.Add(
-                          this._period !== null ? this._period : 0
+                          this.Period !== null ? this.Period : 0
                       )
                     : data.Time;
             this._workingBar = null;
@@ -151,6 +155,21 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
     }
 
     /// <summary>
+    /// Returns true if this consolidator is time-based, false otherwise
+    // TODO: convert to property as is in C#?
+    /// </summary>
+    IsTimeBased() {
+        return this._maxCount === null;
+    }
+
+    /// <summary>
+    /// Gets the time period for this consolidator
+    /// </summary>
+    get Period() {
+        return this._period;
+    }
+
+    /// <summary>
     /// Determines whether or not the specified data should be processed
     /// </summary>
     /// <param name="data">The data to check</param>
@@ -160,11 +179,14 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
     }
 
     /// <summary>
-    /// Returns true if this consolidator is time-based, false otherwise
+    /// ABSTRACT!
+    /// Aggregates the new 'data' into the 'workingBar'. The 'workingBar' will be
+    /// null following the event firing
     /// </summary>
-    IsTimeBased() {
-        return this._maxCount === null;
-    }
+    /// <param name="workingBar">The bar we're building, null if the event was just fired and we're starting a new consolidated bar</param>
+    /// <param name="data">The new data</param>
+    /// <returns>workingBar after aggregation. Note this differs from C# - there we pass bar as a ref!</returns>
+    AggregateBar(workingBar, data) {}
 
     /// <summary>
     /// Gets a rounded-down bar time. Called by AggregateBar in derived classes.
@@ -181,16 +203,6 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
 
         return barTime;
     }
-
-    /// <summary>
-    /// ABSTRACT!
-    /// Aggregates the new 'data' into the 'workingBar'. The 'workingBar' will be
-    /// null following the event firing
-    /// </summary>
-    /// <param name="workingBar">The bar we're building, null if the event was just fired and we're starting a new consolidated bar</param>
-    /// <param name="data">The new data</param>
-    /// <returns>workingBar after aggregation. Note this differs from C# - there we pass bar as a ref!</returns>
-    AggregateBar(workingBar, data) {}
 
     /// <summary>
     /// Event invocator for the <see cref="DataConsolidated"/> event
@@ -216,26 +228,6 @@ class TimeSpanPeriodSpecification {
     }
 
     GetRoundedBarTime(time) {
-        return RoundDown(time, this.Period);
+        return time.RoundDown(this.Period);
     }
 }
-
-/// <summary>
-/// Extension method to round a datetime down by a timespan interval.
-/// </summary>
-/// <param name="dateTime">Base DateTime object we're rounding down.</param>
-/// <param name="interval">Timespan interval to round to.</param>
-/// <returns>Rounded datetime</returns>
-const RoundDown = (dateTime, interval) => {
-    if (interval === 0) {
-        // divide by zero exception
-        return dateTime;
-    }
-
-    const amount = dateTime.getTime() % interval;
-    if (amount > 0) {
-        dateTime.setTime(dateTime.getTime() - amount);
-    }
-
-    return dateTime;
-};
