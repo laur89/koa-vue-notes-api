@@ -1,6 +1,8 @@
 // based on LEAN's Common/Data/Consolidators/QuoteBarConsolidator.cs
 import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
 import QuoteBar from '../model/QuoteBar.js';
+import Bar from "../model/Bar";
+import {MarketDataType} from "../constants/Global";
 
 export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
     constructor(timeSpan) {
@@ -19,22 +21,20 @@ export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
         let ask = data.Ask;
 
         if (workingBar === null) {
-            workingBar = new QuoteBar(
-                (symbol = data.Symbol),
-                (time = this.GetRoundedBarTime(data.Time)),
-                (bid = bid == null ? null : bid.Clone()),
-                (ask = ask == null ? null : ask.Clone()),
-                (period =
-                    this.IsTimeBased() && this._period !== null
-                        ? this._period
-                        : data.Period)
-            );
+            workingBar = new QuoteBar();
+            workingBar.Symbol = data.Symbol;
+            workingBar.Time = this.GetRoundedBarTime(data.Time);
+            workingBar.Bid = bid === null ? null : bid.Clone();
+            workingBar.Ask = ask === null ? null : ask.Clone();
+            workingBar.Period = this.IsTimeBased() && this._period !== null
+                ? this._period
+                : data.Period;
         }
 
         // update the bid and ask
         if (bid !== null) {
             workingBar.LastBidSize = data.LastBidSize;
-            if (workingBar.Bid == null) {
+            if (workingBar.Bid === null) {
                 workingBar.Bid = new Bar(
                     bid.Open,
                     bid.High,

@@ -1,5 +1,7 @@
 import BaseData from './BaseData.js';
+import TradeBar from './TradeBar.js';
 import Bar from './Bar.js';
+import IDate from '../utils/IDate.js';
 import {
     MarketDataType,
 } from '../constants/Global.js';
@@ -13,29 +15,28 @@ export default class QuoteBar extends BaseData {
     /// <summary>
     /// Default initializer to setup an empty quotebar.
     /// </summary>
-    constructor(
-        symbol = '', // Symbol.Empty in LEAN
-        time = new Date(),
-        bid = new Bar(),
-        ask = new Bar(),
-        value = 0,
-        period = 60 * 1000, // default to 1m
-        dataType = MarketDataType.QuoteBar
-    ) {
+    constructor() {
         super();
         this.setMembers();
 
-        this.Symbol = symbol;
-        this.Time = time;
-        this.Bid = bid;
-        this.Ask = ask;
-        this.Value = value;
-        this.Period = period;
-        this.DataType = dataType;
+        this.Symbol = ''; // Symbol.Empty in LEAN
+        this.Time = new IDate();
+
+        /// <summary>
+        /// Bid OHLC
+        /// </summary>
+        this.Bid = new Bar();
+
+        /// <summary>
+        /// Ask OHLC
+        /// </summary>
+        this.Ask = new Bar();
+        this.Value = 0.0;
+        this.Period = 60 * 1000; // default to 1m
+        this.DataType = MarketDataType.QuoteBar;
     }
 
     setMembers() {
-        // TODO: unsure if necessary for us
         /// <summary>
         /// Average bid size
         /// </summary>
@@ -73,7 +74,7 @@ export default class QuoteBar extends BaseData {
     /// High price of the QuoteBar during the time period.
     /// </summary>
     get High() {
-        if (this.Bid !== null && this.Ask != null) {
+        if (this.Bid !== null && this.Ask !== null) {
             if (this.Bid.High !== 0 && this.Ask.High !== 0)
                 return (this.Bid.High + this.Ask.High) / 2.0;
 
@@ -138,10 +139,51 @@ export default class QuoteBar extends BaseData {
     /// <summary>
     /// The closing time of this bar, computed via the Time and Period
     /// </summary>
+    get EndTime() {
+        return this.Time + this.Period;
+    }
     set EndTime(value) {
         this.Period = value - this.Time;
     }
-    get EndTime() {
-        return this.Time + this.Period;
+
+    /// <summary>
+    /// Return a new instance clone of this quote bar, used in fill forward
+    /// </summary>
+    /// <returns>A clone of the current quote bar</returns>
+    Clone() {
+        const qb = new QuoteBar();
+
+        qb.Ask = this.Ask === null ? null : this.Ask.Clone();
+        qb.Bid = this.Bid === null ? null : this.Bid.Clone();
+        qb.LastAskSize = this.LastAskSize;
+        qb.LastBidSize = this.LastBidSize;
+        qb.Symbol = this.Symbol;
+        qb.Time = this.Time;
+        qb.Period = this.Period;
+        qb.Value = this.Value;
+        qb.DataType = this.DataType;
+
+        return qb;
+    }
+
+    /// <summary>
+    /// Collapses QuoteBars into TradeBars object when
+    ///  algorithm requires FX data, but calls OnData(<see cref="TradeBars"/>)
+    /// TODO: (2017) Remove this method in favor of using OnData(<see cref="Slice"/>)
+    /// </summary>
+    /// <returns><see cref="TradeBars"/></returns>
+    Collapse() {
+        const tb = new TradeBar();
+
+        tb.Time = this.Time;
+        tb.Symbol = this.Symbol;
+        tb.Open = this.Open;
+        tb.High = this.High;
+        tb.Low = this.Low;
+        tb.Close = this.Close;
+        tb.Volume = 0;  // should be set anyway at the constructor?
+        tb.Period = this.Period;
+
+        return tb;
     }
 }
