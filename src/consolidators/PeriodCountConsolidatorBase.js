@@ -1,3 +1,4 @@
+// based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
 import InvalidOperationException from '../exceptions/InvalidOperationException.js';
 import DataConsolidator from './DataConsolidator.js';
 import TradeBar from '../model/TradeBar.js';
@@ -32,6 +33,13 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         this._workingBar = null;
         //The last time we emitted a consolidated bar
         this._lastEmit = null; // nullable in C#, otherwise DateTime
+    }
+
+    /// <summary>
+    /// Gets a clone of the data being currently consolidated
+    /// </summary>
+    get WorkingData() {
+        return this._workingBar === null ? null : this._workingBar.Clone();
     }
 
     /// <summary>

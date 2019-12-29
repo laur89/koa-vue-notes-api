@@ -2,8 +2,10 @@
 import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
 import QuoteBar from '../model/QuoteBar.js';
 import Bar from "../model/Bar";
-import {MarketDataType} from "../constants/Global";
 
+/// <summary>
+/// Consolidates QuoteBars into larger QuoteBars
+/// </summary>
 export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
     constructor(timeSpan) {
         super(timeSpan);
@@ -26,8 +28,8 @@ export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
             workingBar.Time = this.GetRoundedBarTime(data.Time);
             workingBar.Bid = bid === null ? null : bid.Clone();
             workingBar.Ask = ask === null ? null : ask.Clone();
-            workingBar.Period = this.IsTimeBased() && this._period !== null
-                ? this._period
+            workingBar.Period = this.IsTimeBased() && this.Period !== null
+                ? this.Period
                 : data.Period;
         }
 

@@ -31,6 +31,7 @@ export default class QuoteBar extends BaseData {
         /// Ask OHLC
         /// </summary>
         this.Ask = new Bar();
+
         this.Value = 0.0;
         this.Period = 60 * 1000; // default to 1m
         this.DataType = MarketDataType.QuoteBar;

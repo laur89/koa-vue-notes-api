@@ -1,7 +1,6 @@
-// based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
+// based on LEAN's Common/Data/Consolidators/BaseDataConsolidator.cs
 import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
 import TradeBar from '../model/TradeBar.js';
-import QuoteBar from "../model/QuoteBar";
 
 /// <summary>
 /// Type capable of consolidating trade bars from any base data instance

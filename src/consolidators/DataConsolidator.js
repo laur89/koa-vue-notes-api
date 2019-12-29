@@ -1,3 +1,5 @@
+// based on LEAN's Common/Data/Consolidators/DataConsolidator.cs
+
 /// <summary>
 /// Represents a type that consumes BaseData instances and fires an event with consolidated
 /// and/or aggregated data.
