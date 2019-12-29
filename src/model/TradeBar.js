@@ -1,21 +1,21 @@
 import BaseData from './BaseData.js';
 import { MarketDataType } from '../constants/Global.js';
 
+/// <summary>
+/// TradeBar class for second and minute resolution data:
+/// An OHLC implementation of the QuantConnect BaseData class with parameters for candles.
+/// </summary>
 export default class TradeBar extends BaseData {
     /// <summary>
     /// Default initializer to setup an empty tradebar.
     /// </summary>
-    constructor(
-        symbol = '', // Symbol.Empty in LEAN
-        dataType = MarketDataType.TradeBar,
-        period = 60 * 1000 // default to 1m
-    ) {
+    constructor() {
         super();
         this.setMembers();
 
-        this.Symbol = symbol;
-        this.DataType = dataType;
-        this.Period = period;
+        this.Symbol = ''; // Symbol.Empty in LEAN
+        this.DataType = MarketDataType.TradeBar;
+        this.Period = 60 * 1000; // default to 1m
     }
 
     setMembers() {
@@ -24,7 +24,61 @@ export default class TradeBar extends BaseData {
         this._high = 0.0;
         this._low = 0.0;
 
-        this._volume = 0.0;
+        this.Volume = 0.0;
+    }
+
+    /// <summary>
+    /// Opening price of the bar: Defined as the price at the start of the time period.
+    /// </summary>
+    get Open() {
+        return this._open;
+    }
+    set Open(value) {
+        this.Initialize(value);
+        this._open = value;
+    }
+
+    /// <summary>
+    /// High price of the TradeBar during the time period.
+    /// </summary>
+    get High() {
+        return this._high;
+    }
+    set High(value) {
+        this.Initialize(value);
+        this._high = value;
+    }
+
+    /// <summary>
+    /// Low price of the TradeBar during the time period.
+    /// </summary>
+    get Low() {
+        return this._low;
+    }
+    set Low(value) {
+        this.Initialize(value);
+        this._low = value;
+    }
+
+    /// <summary>
+    /// Closing price of the TradeBar. Defined as the price at Start Time + TimeSpan.
+    /// </summary>
+    get Close() {
+        return this.Value;
+    }
+    set Close(value) {
+        this.Initialize(value);
+        this.Value = value;
+    }
+
+    /// <summary>
+    /// The closing time of this bar, computed via the Time and Period
+    /// </summary>
+    get EndTime() {
+        return this.Time + this.Period;
+    }
+    set EndTime(value) {
+        this.Period = value - this.Time;
     }
 
     /// <summary>
@@ -47,6 +101,30 @@ export default class TradeBar extends BaseData {
     }
 
     /// <summary>
+    /// Return a new instance clone of this object
+    ///
+    /// TODO: not sure if correct, also we're missing clone with fillForward arg;
+    /// </summary>
+    Clone() {
+        const tb = new TradeBar();
+
+        tb.Symbol = this.Symbol;
+        tb.Time = this.Time;
+        tb.Period = this.Period;
+        tb.Value = this.Value;
+        tb.DataType = this.DataType;
+        tb._isFillFwd = this._isFillFwd;  // private in BaseData
+
+        tb._initialized = this._initialized;
+        tb._open = this._open;
+        tb._high = this._high;
+        tb._low = this._low;
+        tb.Volume = this.Volume;
+
+        return tb;
+    }
+
+    /// <summary>
     /// Initializes this bar with a first data point
     /// </summary>
     /// <param name="value">The seed value for this bar</param>
@@ -58,70 +136,5 @@ export default class TradeBar extends BaseData {
             this._low = value;
             this._high = value;
         }
-    }
-
-    set Volume(value) {
-        this._volume = value;
-    }
-    get Volume() {
-        return this._volume;
-    }
-
-    /// <summary>
-    /// Opening price of the bar: Defined as the price at the start of the time period.
-    /// </summary>
-    get Open() {
-        return this._open;
-    }
-
-    set Open(value) {
-        this.Initialize(value);
-        this._open = value;
-    }
-
-    /// <summary>
-    /// High price of the TradeBar during the time period.
-    /// </summary>
-    get High() {
-        return this._high;
-    }
-
-    set High(value) {
-        this.Initialize(value);
-        this._high = value;
-    }
-
-    /// <summary>
-    /// Low price of the TradeBar during the time period.
-    /// </summary>
-    get Low() {
-        return this._low;
-    }
-
-    set Low(value) {
-        this.Initialize(value);
-        this._low = value;
-    }
-
-    /// <summary>
-    /// Closing price of the TradeBar. Defined as the price at Start Time + TimeSpan.
-    /// </summary>
-    get Close() {
-        return this.Value;
-    }
-
-    set Close(value) {
-        this.Initialize(value);
-        this.Value = value;
-    }
-
-    /// <summary>
-    /// The closing time of this bar, computed via the Time and Period
-    /// </summary>
-    set EndTime(value) {
-        this.Period = value - this.Time;
-    }
-    get EndTime() {
-        return this.Time + this.Period;
     }
 }
