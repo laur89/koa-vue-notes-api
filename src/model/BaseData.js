@@ -5,6 +5,10 @@ import {
     SecurityType
 } from '../constants/Global.js';
 
+/// <summary>
+/// Abstract base data class of QuantConnect. It is intended to be extended to define
+/// generic user customizable data types while at the same time implementing the basics of data where possible
+/// </summary>
 export default class BaseData {
     constructor() {
         this._value = 0.0;

@@ -2,12 +2,14 @@ import BaseData from './BaseData.js';
 import Bar from './Bar.js';
 import {
     MarketDataType,
-    Resolution,
-    Resolutions,
-    SecurityType,
 } from '../constants/Global.js';
 
+/// <summary>
+/// QuoteBar class for second and minute resolution data:
+/// An OHLC implementation of the QuantConnect BaseData class with parameters for candles.
+/// </summary>
 export default class QuoteBar extends BaseData {
+
     /// <summary>
     /// Default initializer to setup an empty quotebar.
     /// </summary>

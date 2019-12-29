@@ -1,3 +1,6 @@
+/// <summary>
+/// Base Bar Class: Open, High, Low, Close and Period.
+/// </summary>
 export default class Bar {
     /// <summary>
     /// Initializer to setup a bar with a given information.
