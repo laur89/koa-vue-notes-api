@@ -6,7 +6,7 @@ import QuoteBar from "../model/QuoteBar";
 /// <summary>
 /// Type capable of consolidating trade bars from any base data instance
 /// </summary>
-//export default class BaseDataConsolidator /*extends TradeBarConsolidatorBase*/ {  // note in C#/LEAN we extand from TBConsolidatorBase, but it doesn't appear to add much
+//export default class BaseDataConsolidator /*extends TradeBarConsolidatorBase*/ {  // note in C#/LEAN we extand from TBConsolidatorBase, but it doesn't appear to add much; that's why we shortcut to extending from PeriodCountConsolidatorBase
 export default class BaseDataConsolidator extends PeriodCountConsolidatorBase {
     constructor(timeSpan) {
         super(timeSpan);
@@ -20,14 +20,15 @@ export default class BaseDataConsolidator extends PeriodCountConsolidatorBase {
     /// <param name="data">The new data</param>
     AggregateBar(workingBar, data) {
         if (workingBar === null) {
-            workingBar = new TradeBar(data.Symbol, data.DataType);
+            workingBar = new TradeBar();
 
+            workingBar.Symbol = data.Symbol;
             workingBar.Time = this.GetRoundedBarTime(data.Time);
             workingBar.Close = data.Value;
             workingBar.High = data.Value;
             workingBar.Low = data.Value;
             workingBar.Open = data.Value;
-            //workingBar.DataType = data.DataType;  // already passing from constructor, no need to duplicate assignment
+            workingBar.DataType = data.DataType;
             workingBar.Value = data.Value;
         } else {
             //Aggregate the working bar

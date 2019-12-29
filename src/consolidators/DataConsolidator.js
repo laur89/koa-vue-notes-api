@@ -1,11 +1,12 @@
-// based on LEAN's Common/Data/Consolidators/PeriodCountConsolidatorBase.cs
-import NotImplementedException from '../exceptions/NotImplementedException.js';
-import ArgumentNullException from '../exceptions/ArgumentNullException.js';
-
+/// <summary>
+/// Represents a type that consumes BaseData instances and fires an event with consolidated
+/// and/or aggregated data.
+/// </summary>
+/// <typeparam name="TInput">The type consumed by the consolidator</typeparam>
 export default class DataConsolidator {
     constructor() {
         /// <summary>
-        /// Event handler that fires when a new piece of data is produced
+        /// Event handler that fires when a new piece of data is produced.
         /// here for js, we have it assigned as array holding subscribed handlers
         /// </summary>
         this.DataConsolidated = [];
@@ -72,6 +73,6 @@ export default class DataConsolidator {
     /// <summary>Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.</summary>
     /// <filterpriority>2</filterpriority>
     Dispose() {
-        this.DataConsolidated = [];
+        this.DataConsolidated = [];  // ie unsub all subscribers?
     }
 }
