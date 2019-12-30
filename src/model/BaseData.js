@@ -112,4 +112,36 @@ export default class BaseData {
 
         return this.AllResolutions;
     }
+
+    /// <summary>
+    /// Update routine to build a bar/tick from a data update.
+    /// </summary>
+    /// <param name="lastTrade">The last trade price</param>
+    /// <param name="bidPrice">Current bid price</param>
+    /// <param name="askPrice">Current asking price</param>
+    /// <param name="volume">Volume of this trade</param>
+    /// <param name="bidSize">The size of the current bid, if available</param>
+    /// <param name="askSize">The size of the current ask, if available</param>
+    Update(lastTrade/*, decimal bidPrice, decimal askPrice, decimal volume, decimal bidSize, decimal askSize*/) {
+        this.Value = lastTrade;
+    }
+
+    /// <summary>
+    /// Return a new instance clone of this object, used in fill forward
+    /// </summary>
+    /// <remarks>
+    /// This base implementation uses reflection to copy all public fields and properties
+    /// </remarks>
+    /// <returns>A clone of the current object</returns>
+    Clone() {
+        const bd = new BaseData();
+
+        bd.Symbol = this.Symbol;
+        bd.Time = this.Time;
+        bd.Value = this.Value;
+        bd.DataType = this.DataType;
+        bd._isFillFwd = this._isFillFwd;
+
+        return bd;
+    }
 }

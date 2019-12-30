@@ -148,6 +148,37 @@ export default class QuoteBar extends BaseData {
     }
 
     /// <summary>
+    /// Update the quotebar - build the bar from this pricing information:
+    /// </summary>
+    /// <param name="lastTrade">The last trade price</param>
+    /// <param name="bidPrice">Current bid price</param>
+    /// <param name="askPrice">Current asking price</param>
+    /// <param name="volume">Volume of this trade</param>
+    /// <param name="bidSize">The size of the current bid, if available, if not, pass 0</param>
+    /// <param name="askSize">The size of the current ask, if available, if not, pass 0</param>
+    Update(lastTrade, bidPrice, askPrice, volume, bidSize, askSize) {
+        // update our bid and ask bars - handle null values, this is to give good values for midpoint OHLC
+        if (this.Bid === null && bidPrice !== 0) this.Bid = new Bar();
+        if (this.Bid !== null) this.Bid.Update(bidPrice);
+
+        if (this.Ask === null && askPrice !== 0) this.Ask = new Bar();
+        if (this.Ask !== null) this.Ask.Update(askPrice);
+
+        if (bidSize > 0) {
+            this.LastBidSize = bidSize;
+        }
+
+        if (askSize > 0) {
+            this.LastAskSize = askSize;
+        }
+
+        // be prepared for updates without trades
+        if (lastTrade !== 0) this.Value = lastTrade;
+        else if (askPrice !== 0) this.Value = askPrice;
+        else if (bidPrice !== 0) this.Value = bidPrice;
+}
+
+    /// <summary>
     /// Return a new instance clone of this quote bar, used in fill forward
     /// </summary>
     /// <returns>A clone of the current quote bar</returns>
