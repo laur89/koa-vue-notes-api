@@ -113,7 +113,7 @@ class Consumer {
             } else if (i.hasOwnProperty('oResults')) {
                 hasores.set(t, hasores.has(t) ? hasores.get(t) + 1 : 1);
 
-                if (!i['oResults'].hasOwnProperty('Charts')) continue;
+                if (!i.oResults.hasOwnProperty('Charts')) continue;
                 eTypeToHasChartsCount.set(
                     t,
                     eTypeToHasChartsCount.has(t)
@@ -121,7 +121,7 @@ class Consumer {
                         : 1
                 );
 
-                let charts_ = i['oResults']['Charts'];
+                let charts_ = i.oResults.Charts;
                 for (const chartName in charts_) {
                     chartName &&
                         charts.set(
@@ -141,6 +141,8 @@ class Consumer {
                             }] type: [${sTypeTrans(s['SeriesType'])}]`
                         );
                     }
+
+                    passToProcessor(c);
                 }
             }
 
