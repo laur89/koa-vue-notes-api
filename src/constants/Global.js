@@ -81,4 +81,26 @@ const SecurityType = {
     Crypto: 'Crypto',
 };
 
-export { MarketDataType, Resolution, Resolutions, SecurityType };
+/// <summary>
+/// Available types of charts
+/// </summary>
+const SeriesType = {
+    /// Line Plot for Value Types
+    Line: 'Line',
+    /// Scatter Plot for Chart Distinct Types
+    Scatter: 'Scatter',
+    /// Charts
+    Candle: 'Candle',
+    /// Bar chart.
+    Bar: 'Bar',
+    /// Flag indicators
+    Flag: 'Flag',
+    /// 100% area chart showing relative proportions of series values at each time index
+    StackedArea: 'StackedArea',
+    /// Pie chart
+    Pie: 'Pie',
+    /// Treemap Plot
+    Treemap: 'Treemap'
+};
+
+export { MarketDataType, Resolution, Resolutions, SecurityType, SeriesType };
