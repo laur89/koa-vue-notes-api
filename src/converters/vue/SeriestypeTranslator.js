@@ -1,23 +1,24 @@
 import logger from '../../logs/log.js';
+import { SeriesType } from '../../constants/Global.js';
 
 function t(type) {
     switch (type) {
         case 0:
-            return 'Line';
+            return SeriesType.Line;
         case 1:
-            return 'Scatter';
+            return SeriesType.Scatter;
         case 2:
-            return 'Candle';
+            return SeriesType.Candle;
         case 3:
-            return 'Bar';
+            return SeriesType.Bar;
         case 4:
-            return 'Flag';
+            return SeriesType.Flag;
         case 5:
-            return 'StackedArea';
+            return SeriesType.StackedArea;
         case 6:
-            return 'Pie';
+            return SeriesType.Pie;
         case 7:
-            return 'Treemap';
+            return SeriesType.Treemap;
         default:
             throw new Error(`unsupported LEAN SeriesType ${type}`);
     }
