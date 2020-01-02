@@ -22,7 +22,7 @@ export default class BaseData {
         /// Current time marker of this data packet.
         /// </summary>
         /// <remarks>All data is timeseries based.</remarks>
-        this.Time = null; // TODO ok to default to null?
+        this.Time = null; // TODO ok to default to null? note C# DateTime is a value type;
 
         /// <summary>
         /// Symbol representation for underlying Security
@@ -137,7 +137,7 @@ export default class BaseData {
         const bd = new BaseData();
 
         bd.Symbol = this.Symbol;
-        bd.Time = this.Time;
+        bd.Time = this.Time;  // TODO: guess we should create new object here?
         bd.Value = this.Value;
         bd.DataType = this.DataType;
         bd._isFillFwd = this._isFillFwd;

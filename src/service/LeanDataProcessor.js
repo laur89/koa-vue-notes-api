@@ -1,37 +1,21 @@
-import logger from '../logs/log.js';
-import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
-import toTradingVueType from '../converters/vue/LeanToVueSeriesTranslator.js';
 //import chartConverter from '../converters/vue/ChartConverter.js'
 import TradeBar from "../model/TradeBar.js";
 import BaseData from "../model/BaseData.js";
-import { SeriesType } from '../constants/Global.js';
 import IDate from "../utils/IDate.js";
 import TradeBarConsolidator from "../consolidators/TradeBarConsolidator.js";
 import BaseDataConsolidator from "../consolidators/BaseDataConsolidator.js";
+import {tradeBarToVueCandleBar} from '../converters/vue/ChartConverter.js';
 
 
 const ignoredCharts = ['Alpha', 'Insight Count', 'Alpha Assets', 'Benchmark'];
 const msgTypes = new Map();
 const eTypeToHasChartsCount = new Map();
 const hasores = new Map();
-const charts = new Map();
+const chartConfigs = new Map();
 
 const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>[0-9]+[smhd])]$/;  // eg "EURUSD[H,1m]"
 const RSIRgx = /^RSI\((?<period>\d+),(?<movingAvgType>\w+),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)$/;  // eg "RSI(14,Wilders,EURUSD_hr)"
 const timeframeRgx = /^(?<no>\d+)(?<val>[smhd])$/;  // eg "1m"
-
-const createChartScaffold = (mainChartType = ) => ({
-    chartName: 'Our chart name from API',  // TODO: need to get the name dynamically
-    chart: {
-        chart: {
-            type: mainChartType,
-            data: [],
-            settings: {}
-        },
-        onchart: [],
-        offchart: []
-    }
-});
 
 const timeframeConversion = {
     s: 1000,
@@ -43,7 +27,17 @@ const timeframeConversion = {
 const timeframeToPeriod = tf => {
     const match = timeframeRgx.exec(tf);
     if (match === null) throw new Error(`Unexpected timeframe from LEAN: ${tf}`);  // sanity check
-    return match.groups.no * timeframeConversion[match.groups.val];
+    return parseInt(match.groups.no) * timeframeConversion[match.groups.val];
+};
+
+const periodToTimeframe = periodMs => {
+    const hours = periodMs / 3600000;
+    const minutes = (periodMs % 3600000) / 60000;
+    const seconds = (periodMs % 60000) / 1000;
+    //const millis = periodMs % 1000;
+
+    //return (periodMs / 60000) + 'm'; <- if we only want minutes
+    return (hours !== 0 ? hours + 'h' : '') + (minutes !== 0 ? minutes + 'm' : '') + (seconds !== 0 ? seconds + 's' : '');
 };
 
 const toBaseData = (symbol, d) => {
@@ -57,178 +51,174 @@ const toBaseData = (symbol, d) => {
 };
 
 //const processAssetPrice = (c, chart) => {
-const convertAssertPriceToTradeBars = (c, chart) => {
-    const series = c.Series;
+const convertAssertPriceToTradeBars = (chart, chartConf) => {
+    const series = chart.Series;
     let index = null;
-    let i = null;
     const bars = [];
+    let symbol, timeframe, periodMs;
 
-    //const j = series[Object.keys(series)[0]];
-    const match = priceRgx.exec(Object.keys(series)[0]);
-    if (match === null) throw new Error('Unexpected Asset Price series name');  // sanity check
-    const symbol = match.groups.symbol;
-    //const ohlc = match.groups.ohlc;
-    const timeframe = match.groups.timeframe;
-    const periodMs = timeframeToPeriod(timeframe);
-    const o = series[`${symbol}[O,${timeframe}]`];
-    const h = series[`${symbol}[H,${timeframe}]`];
-    const l = series[`${symbol}[L,${timeframe}]`];
-    const close = series[`${symbol}[C,${timeframe}]`];
+    if (chartConf === undefined) {
+        //const j = series[Object.keys(series)[0]];
+        const match = priceRgx.exec(Object.keys(series)[0]);
+        if (match === null) throw new Error('Unexpected Asset Price series name');  // sanity check
+        symbol = match.groups.symbol;
+        //const ohlc = match.groups.ohlc;
+        timeframe = match.groups.timeframe;
+        periodMs = timeframeToPeriod(timeframe);
+    } else {
+        symbol = chartConf.symbol;
+        timeframe = chartConf.timeframe.symbol;
+        periodMs = chartConf.timeframe.periodMs;
+    }
 
-    for (let i = 0; i < o.Values.length; i++) {
+    const o = series[`${symbol}[O,${timeframe}]`].Values;
+    const h = series[`${symbol}[H,${timeframe}]`].Values;
+    const l = series[`${symbol}[L,${timeframe}]`].Values;
+    const c = series[`${symbol}[C,${timeframe}]`].Values;
+
+    if (!(o.length !== 0 && o.length === h.length && o.length === l.length && o.length === c.length)) {
+        throw new Error(`${symbol} tradebar series lengths didn't match or were equal to 0`);
+    }
+
+    for (let i = 0; i < o.length; i++) {
         const bar = new TradeBar();
         bar.Symbol = symbol;
         bar.Period = periodMs;
-        bar.Time = new IDate(o.Values[i].x); // do not convert to nanos here, as we're still on LEAN data at this point;
-        bar.Open = o.Values[i].y;
-        bar.High = h.Values[i].y;
-        bar.Low = l.Values[i].y;
-        bar.Close = close.Values[i].y;
+        bar.Time = new IDate(o[i].x); // do not convert to nanos here, as we're still on LEAN data at this point;
+        bar.Open = o[i].y;
+        bar.High = h[i].y;
+        bar.Low = l[i].y;
+        bar.Close = c[i].y;
         bars.push(bar);
     }
 
-    return {
-        timeframe: {
-            symbol: timeframe,
-            periodMs: periodMs
-        },
-        symbol: symbol,
-        bars: bars,
-        consolidators: [],
-        consolidatorConstructor: TradeBarConsolidator
-    };
-
-
-
-
-    for (const seriesName of Object.keys(series)) {
-        const s = series[seriesName];
-        const leanSeriesType = sTypeTrans(s.SeriesType);
-        if (leanSeriesType !== SeriesType.Candle) {}throw new Error('Asset Price segment should always have candle type)');  // sanity check
-
-        const match = priceRgx.exec(s.Name);
-        if (match === null) {}throw new Error(`Unexpected Asset Price series name ${s.Name}`);  // sanity check
-
-        const symbol = match.groups.symbol;
-        const ohlc = match.groups.ohlc;
-        const timeframe = match.groups.timeframe;
-
-
-
-        if (index === null) {}index = s.Index;
-        if (i === null) {
-            const match = priceRgx.exec(s.Name);
-            if (match !== null) {
-                match.groups.ohlc;
-            }
-        }
-
-        logger.debug(
-            `chart [${chartName}]:series [${
-                s['Name']
-            }] type: [${sTypeTrans(s['SeriesType'])}]`
-        );
+    if (chartConf === undefined) {
+        // TODO: should we also store the running bar tally in memory? at least until if/when we move to kafka
+        return [bars, {
+            timeframe: {
+                symbol: timeframe,
+                periodMs: periodMs
+            },
+            symbol: symbol,
+            //bars: bars,
+            consolidators: getCommonConsolidators(periodMs, TradeBarConsolidator, () => {}),
+            consolidatorConstructor: TradeBarConsolidator
+        }];
     }
+
+    return [bars, chartConf];
 };
 
 
+const equitySymbol = 'Equity';
+const toEquityBaseData = toBaseData.bind(null, equitySymbol);
 // TODO: daily performance is a separate case, can't really consolidate it much, can we
-const processStratEquity = (c, chart) => {
+const processStratEquity = (c, chartConf, vueChart) => {
     const series = c.Series;
+    const s = series[equitySymbol];
+    //const equityBaseData = s.Values.map(d => toBaseData(equitySymbol, d));
+    const equityBaseData = s.Values.map(toEquityBaseData);
 
-    const symbol = 'Equity';
-    const s = series[symbol];
-    const periodMs = s.Values[1].x - s.Values[0].x;  // TODO: only do this for first msg, think we should store this in working memory?
-    const equityBars = s.Values.map(d => toBaseData(symbol, d));
+    if (chartConf === undefined) {
+        if (s.Values.length < 2) {
+            throw new Error('[Equity] series length < 2, cannot derive period');
+        }
 
-    return {
-        timeframe: {
-            symbol: "?",
-            periodMs: periodMs
-        },
-        symbol: symbol,
-        bars: equityBars,
-        consolidators: [],
-        consolidatorConstructor: BaseDataConsolidator
-    };
+        const periodMs = s.Values[1].x - s.Values[0].x;
+        const baseConsolidatorPeriodMs = periodMs * 60;  // TODO: is 60 a good multiplier for our base-consolidator?
+
+        // TODO: where to push data of these semi-auto created consolidators?
+        const onConsolidated = () => {
+
+        };
+        //const consolidators = getCommonConsolidators(periodMs, BaseDataConsolidator, onConsolidated);
+        const consolidators = [];  // TODO: lacking common/base/pre-defined consolidators atm
+        if (!consolidators.some(c => c.Period === baseConsolidatorPeriodMs)) {
+            const c = new BaseDataConsolidator(baseConsolidatorPeriodMs);
+            c.DataConsolidated.push((sender, data) => {
+                vueChart.chart.offchart[0].data.push(tradeBarToVueCandleBar(data));
+            });
+            consolidators.push(c);
+        }
+
+        // TODO: should we also store the running bar tally in memory? at least until if/when we move to kafka
+        return [equityBaseData, {
+            timeframe: {
+                symbol: periodToTimeframe(periodMs),
+                periodMs: periodMs  // TODO: only do this for first msg, think we should store this in working memory?
+            },
+            symbol: equitySymbol,
+            //bars: equityBars,
+            consolidators: consolidators,
+            consolidatorConstructor: BaseDataConsolidator
+        }];
+    } else {
+        return [equityBaseData, chartConf];
+    }
 };
 
 const processIndicators = (c, chart) => {
 
 };
 
-const getConsolidatorsFor = (data) => {
-    if (data.consolidators.length === 0) {
-        const periodMs = data.timeframe.periodMs;
-        let periods;
-        if (periodMs <= 60 * 1000) {
-            periods = [
-                3 * 60 * 1000,
-                5 * 60 * 1000,
-                30 * 60 * 1000,
-                60 * 60 * 1000];
-        } else if (periodMs <= 3 * 60 * 1000) {
-            periods = [
-                5 * 60 * 1000,
-                30 * 60 * 1000,
-                60 * 60 * 1000];
-        } else if (periodMs <= 5 * 60 * 1000) {
-            periods = [
-                30 * 60 * 1000,
-                60 * 60 * 1000];
-        }
+const getCommonConsolidators = (periodMs, consolidatorConstructor, onConsolidated) => (
+    [3, 5, 30, 60]  // minutes
+        .map(p => p * 60 * 1000)
+        .filter(p => p > periodMs)
+        .map(p => {
+                const c = new consolidatorConstructor(p);
+                c.DataConsolidated.push((sender, data) => {
+                    onConsolidated(data);
+                });
+                return c;
+            }
+        )
+);
 
-        periods.forEach(p => data.consolidators.push(new data.consolidatorConstructor(p)));
-        data.consolidators.forEach(c => c.DataConsolidated.push((sender, data) => {
-            putDataTogetherAndPushToSocket(data);
-            })
-        );
 
-    return data.consolidators;
-}
-
-const process = c => {
+// TODO: is there even point in returning bars from per-chart processors/converters to this function?
+// guess some benefit might be in invoking consolidator.Update from a singular place;
+const processLeanChart = (c, vueChart) => {
     if (ignoredCharts.includes(c.Name)) return;
 
-    let chart = charts.get('TODO hard-coded chart ID');
-    if (chart === undefined) {
-        chart = createChartScaffold();
-    }
+    let chartConf = chartConfigs.get('TODO hard-coded chart ID' + c.Name);
+    const chartMissing = chartConf === undefined;
 
-    let data;
+    let data;  // tradebars or basedata
     switch (c.Name) {
         case 'Asset Price':
-            data = convertAssertPriceToTradeBars(c, chart);
+            [data, chartConf] = convertAssertPriceToTradeBars(c, chartConf);
+            vueChart.chart.chart.data.push(...data.map(tradeBarToVueCandleBar));
 
             // add consolidator:
             //const c = new TradeBarConsolidator(3600 * 1000);
             //c.DataConsolidated.push((sender, data) => {
-        //    putDataTogetherAndPushToSocket()
+            //    putDataTogetherAndPushToSocket()
             //});
-
-            assetPriceConsolidators.foreach(consolidator => {
-                data.bars.forEach(bar => consolidator.Update(bar));
-
-                // TODO: Scan doesn't make much sense in backtest, does it?
-                //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
-            });
             break;
         case 'Strategy Equity':
-            data = processStratEquity(c, chart);
-            getConsolidatorsFor(data).forEach(consolidator => {
-                data.bars.forEach(consolidator.Update);
-
-                // TODO: Scan doesn't make much sense in backtest, does it?
-                //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
-            });
+            [data, chartConf] = processStratEquity(c, chartConf, vueChart);
+            //getCommonConsolidators(periodMs, TradeBarConsolidator, () => {})
+            //vueChart.chart.offchart[0].data.push(...bars);
             break;
         case 'Indicators':
-            processIndicators(c, chart);
+            processIndicators(c, chartConf);
             break;
         default:
             // TODO: should we actively blacklist charts (ignoredCharts), and log errors here if unknown is ocurred, or just drop non-white list ones?
             return;
     }
+
+    chartConf.consolidators.forEach(consolidator => {
+        data.forEach(consolidator.Update);
+
+        // TODO: Scan doesn't make much sense in backtest, does it?
+        //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
+    });
+
+    if (chartMissing) {
+        chartConfigs.set('TODO hard-coded chart ID' + c.Name, chartConf);
+    }
 };
 
-export default process;
+export default processLeanChart;

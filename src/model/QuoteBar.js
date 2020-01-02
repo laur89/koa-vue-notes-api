@@ -190,7 +190,7 @@ export default class QuoteBar extends BaseData {
         qb.LastAskSize = this.LastAskSize;
         qb.LastBidSize = this.LastBidSize;
         qb.Symbol = this.Symbol;
-        qb.Time = this.Time;
+        qb.Time = this.Time;  // TODO: guess we should create new object here?
         qb.Period = this.Period;
         qb.Value = this.Value;
         qb.DataType = this.DataType;

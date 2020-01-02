@@ -1,12 +1,14 @@
 import logger from '../logs/log.js';
 import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
 //import chartConverter from '../converters/vue/ChartConverter.js'
+import processLeanChart from './LeanDataProcessor.js';
 
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
 import zmq from 'zeromq';
 
 import joi from 'joi';
+//import {SeriesType} from "../constants/Global";
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
 //path: '/chartsock',
@@ -87,6 +89,24 @@ const msgTypes = new Map();
 const eTypeToHasChartsCount = new Map();
 const hasores = new Map();
 const charts = new Map();
+const vueCharts = new Map();
+
+const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to parametirze vue char types
+    chartName: 'Our chart name from API',  // TODO: need to get the name dynamically
+    chart: {
+        chart: {
+            type: mainChartType,
+            data: [],
+            settings: {}
+        },
+        onchart: [],
+        offchart: [{
+            name: 'Equity',
+            type: 'Candles',
+            data: []
+        }]
+    }
+});
 
 class Consumer {
     constructor(ioSock) {
@@ -98,6 +118,12 @@ class Consumer {
 
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
+
+        let vueChart = vueCharts.get('TODO hard-coded backtest ID');
+        if (vueChart === undefined) {
+            vueChart = createChartScaffold();
+            vueCharts.set('TODO hard-coded backtest ID', vueChart)
+        }
 
         let i, t;
         for await (const [msg] of sock) {
@@ -142,11 +168,11 @@ class Consumer {
                         );
                     }
 
-                    passToProcessor(c);
+                    processLeanChart(c, vueChart);
                 }
             }
 
-            pushToClients(this.ioSock.getSocket(), i);
+            pushToClients(this.ioSock.getSocket(), vueChart);
 
             if (t === 'SystemDebug') {
                 logger.error('FIN algo');

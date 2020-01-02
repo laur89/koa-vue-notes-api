@@ -109,7 +109,7 @@ export default class TradeBar extends BaseData {
         const tb = new TradeBar();
 
         tb.Symbol = this.Symbol;
-        tb.Time = this.Time;
+        tb.Time = this.Time;  // TODO: guess we should create new object here?
         tb.Period = this.Period;
         tb.Value = this.Value;
         tb.DataType = this.DataType;
