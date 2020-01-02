@@ -1,6 +1,6 @@
 const tradeBarToVueCandleBar = bar => (
     [
-        bar.Time.getTime() * 1000,  // trading-vue expects ns
+        bar.Time.getTime(),
         bar.Open,
         bar.High,
         bar.Low,

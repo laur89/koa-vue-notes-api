@@ -1,6 +1,6 @@
 export default class IDate extends Date {
-    constructor() {
-        super();
+    constructor(ms) {
+        super(ms);
     }
 
     addMillis(ms) {
@@ -12,6 +12,10 @@ export default class IDate extends Date {
 
     Add(ms) {
         return this.addMillis(ms);
+    }
+
+    Clone() {
+        return new IDate(this.getTime());
     }
 
     /// <summary>

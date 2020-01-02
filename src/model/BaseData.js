@@ -137,7 +137,7 @@ export default class BaseData {
         const bd = new BaseData();
 
         bd.Symbol = this.Symbol;
-        bd.Time = this.Time;  // TODO: guess we should create new object here?
+        bd.Time = this.Time.Clone();
         bd.Value = this.Value;
         bd.DataType = this.DataType;
         bd._isFillFwd = this._isFillFwd;

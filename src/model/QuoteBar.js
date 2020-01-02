@@ -190,7 +190,7 @@ export default class QuoteBar extends BaseData {
         qb.LastAskSize = this.LastAskSize;
         qb.LastBidSize = this.LastBidSize;
         qb.Symbol = this.Symbol;
-        qb.Time = this.Time;  // TODO: guess we should create new object here?
+        qb.Time = this.Time.Clone();
         qb.Period = this.Period;
         qb.Value = this.Value;
         qb.DataType = this.DataType;
@@ -207,7 +207,7 @@ export default class QuoteBar extends BaseData {
     Collapse() {
         const tb = new TradeBar();
 
-        tb.Time = this.Time;
+        tb.Time = this.Time.Clone();
         tb.Symbol = this.Symbol;
         tb.Open = this.Open;
         tb.High = this.High;
