@@ -1,6 +1,6 @@
 import logger from '../logs/log.js';
 import http from 'http';
-
+import {getRandInt, getRand} from '../utils/utils.js';
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
 import zmq from 'zeromq';
@@ -11,6 +11,7 @@ import Mock from './MockData.js';
 //import http from 'http';
 //import SocketIO from 'socket.io';
 import joi from 'joi';
+import fs from "fs";
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
 //path: '/chartsock',
@@ -47,9 +48,9 @@ class Sock {
             path: '/sock',
             serveClient: false,
             // below are engine.IO options
-            pingInterval: 10000,
+            pingInterval: 25 * 1000,
             //transports: ['websocket'],
-            pingTimeout: 5000,
+            pingTimeout: 10 * 1000,
             cookie: 'sock-hndshk-sid',
         }); //.of('/sock');
         //this.ioSock = io.listen(server)
@@ -63,8 +64,9 @@ class Sock {
         // Receiving connection to SocketIO:
         this.ioSock.on('connection', socket => {
             logger.info('  >>>>> a user connected!');
-            //i = this.ioSock;
             //i.sockets.emit('CHARTITO', payload);
+
+            sendStaticPayload(this.ioSock);
         });
 
         server.listen(4001);
@@ -91,9 +93,34 @@ class Sock {
     }
 }
 
-// Get the Object's methods names:
-const getMethodsNames = function(obj = this) {
-    return Object.keys(obj).filter(key => typeof obj[key] === 'function');
+// for testing/debugging
+const sendStaticPayload = ioSock => {
+    const timeRand = Math.floor(getRandInt(1000000, 9000000) * 60000);
+    logger.error('sending static...');
+    //fs.writeFile('/tmp/waaaat.dat', JSON.stringify(vueChart), 'utf8', () => {});
+    fs.readFile('/tmp/processed-lean.dat', 'utf8', (err, data) => {
+        ioSock.sockets.emit('CHARTITO', JSON.parse(data));
+        return;
+
+        const a = JSON.parse(data);
+        //logger.error('yo:1' + JSON.stringify(a));
+        a.chart.chart.data = a.chart.chart.data.map(d => (
+            [
+                d[0] + timeRand,
+                //d[0],
+                d[1] - getRand(-0.00009, 0.0001),
+                d[2] - getRand(-0.00009, 0.0001),
+                d[3] - getRand(-0.00009, 0.0001),
+                d[4] - getRand(-0.00009, 0.0001),
+                0
+            ]
+        ));
+
+        fs.writeFile('/tmp/bugreport.dat', JSON.stringify(a), 'utf8', () => {});
+
+        ioSock.sockets.emit('CHARTITO', a);
+    });
+    //fs.writeFile('/tmp/out.dat', JSON.stringify(a), 'utf8', () => {});
 };
 
 export default Sock;

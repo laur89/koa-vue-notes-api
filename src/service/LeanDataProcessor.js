@@ -44,7 +44,7 @@ const toBaseData = (symbol, d) => {
     const bd = new BaseData();
 
     bd.Symbol = symbol;
-    bd.Time = new IDate(d.x);
+    bd.Time = new IDate(d.x * 1000); // LEAN sends data in seconds
     bd.Value = d.y;
 
     return bd;
@@ -84,7 +84,8 @@ const convertAssertPriceToTradeBars = (chart, chartConf) => {
         const bar = new TradeBar();
         bar.Symbol = symbol;
         bar.Period = periodMs;
-        bar.Time = new IDate(o[i].x); // do not convert to nanos here, as we're still on LEAN data at this point;
+        //bar.Time = new IDate(o[i].x); // do not convert to nanos here, as we're still on LEAN data at this point;
+        bar.Time = new IDate(o[i].x * 1000); // LEAN sends data in seconds
         bar.Open = o[i].y;
         bar.High = h[i].y;
         bar.Low = l[i].y;
@@ -136,7 +137,7 @@ const processStratEquity = (c, chartConf, vueChart) => {
         if (!consolidators.some(c => c.Period === baseConsolidatorPeriodMs)) {
             const c = new BaseDataConsolidator(baseConsolidatorPeriodMs);
             c.DataConsolidated.push((sender, data) => {
-                vueChart.chart.offchart[0].data.push(tradeBarToVueCandleBar(data));
+//                vueChart.chart.offchart[0].data.push(tradeBarToVueCandleBar(data));  TODO: uncomment this at one point
             });
             consolidators.push(c);
         }
@@ -201,16 +202,16 @@ const processLeanChart = (c, vueChart) => {
             //getCommonConsolidators(periodMs, TradeBarConsolidator, () => {})
             //vueChart.chart.offchart[0].data.push(...bars);
             break;
-        case 'Indicators':
-            processIndicators(c, chartConf);
-            break;
+        //case 'Indicators':
+            //processIndicators(c, chartConf);
+            //break;
         default:
             // TODO: should we actively blacklist charts (ignoredCharts), and log errors here if unknown is ocurred, or just drop non-white list ones?
             return;
     }
 
     chartConf.consolidators.forEach(consolidator => {
-        data.forEach(consolidator.Update);
+        data.forEach(consolidator.Update, consolidator);
 
         // TODO: Scan doesn't make much sense in backtest, does it?
         //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);

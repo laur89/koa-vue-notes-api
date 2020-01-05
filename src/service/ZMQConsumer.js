@@ -2,10 +2,12 @@ import logger from '../logs/log.js';
 import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
 //import chartConverter from '../converters/vue/ChartConverter.js'
 import processLeanChart from './LeanDataProcessor.js';
+import {getRandInt, getRand} from '../utils/utils.js';
 
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
 import zmq from 'zeromq';
+import fs from 'fs';
 
 import joi from 'joi';
 //import {SeriesType} from "../constants/Global";
@@ -79,8 +81,9 @@ const chartSchema = joi.object({
 const pushToClients = (ioSock, data) => {
     // Parse the remaining string and send the object to your WebUi via SocketIO
     //data = JSON.parse(data)
-    //logger.error(`>>> zmq data received: ${data}`);  // TODO delme
+    //logger.error(`>>> pushing via sock: ${JSON.stringify(data)}`);  // TODO delme
     ioSock.sockets.emit('CHARTITO', data);
+    //process.exit(0);
     //ioSock.sockets.emit('kek', 14444)
 };
 
@@ -91,7 +94,7 @@ const hasores = new Map();
 const charts = new Map();
 const vueCharts = new Map();
 
-const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to parametirze vue char types
+const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to parametirze vue chart types
     chartName: 'Our chart name from API',  // TODO: need to get the name dynamically
     chart: {
         chart: {
@@ -99,12 +102,12 @@ const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to 
             data: [],
             settings: {}
         },
-        onchart: [],
-        offchart: [{
-            name: 'Equity',
-            type: 'Candles',
-            data: []
-        }]
+        //onchart: [],
+        //offchart: [{
+            //name: 'Equity',
+            //type: 'Candles',
+            //    data: []
+        //}]
     }
 });
 
@@ -172,10 +175,11 @@ class Consumer {
                 }
             }
 
-            pushToClients(this.ioSock.getSocket(), vueChart);
+            //vueChart.chart.chart.data.length !== 0 && pushToClients(this.ioSock.getSocket(), vueChart);
 
             if (t === 'SystemDebug') {
                 logger.error('FIN algo');
+                //persistFinalState(vueChart);
 
                 logger.debug(msgTypes);
                 msgTypes.clear();
@@ -190,9 +194,33 @@ class Consumer {
     }
 }
 
-// Get the Object's methods names:
-const getMethodsNames = function(obj = this) {
-    return Object.keys(obj).filter(key => typeof obj[key] === 'function');
+const persistFinalState = state => {
+    const timeRand = Math.floor(getRandInt(1000000, 9000000) * 60000);
+    fs.writeFile('/tmp/processed-lean.dat', JSON.stringify(state), 'utf8', () => {});
+    return;
+
+    fs.readFile('/tmp/out.json', 'utf8', (err, data) => {
+        ioSock.sockets.emit('CHARTITO', JSON.parse(data));
+        return;
+
+        const a = JSON.parse(data);
+        //logger.error('yo:1' + JSON.stringify(a));
+        a.chart.chart.data = a.chart.chart.data.map(d => (
+            [
+                d[0] + timeRand,
+                //d[0],
+                d[1] - getRand(-0.00009, 0.0001),
+                d[2] - getRand(-0.00009, 0.0001),
+                d[3] - getRand(-0.00009, 0.0001),
+                d[4] - getRand(-0.00009, 0.0001),
+                0
+            ]
+        ));
+
+        fs.writeFile('/tmp/bugreport.dat', JSON.stringify(a), 'utf8', () => {});
+
+        ioSock.sockets.emit('CHARTITO', a);
+    });
 };
 
 export default Consumer;
