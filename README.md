@@ -134,8 +134,8 @@ TLDR db init:
 - `CREATE DATABASE koa_vue_notes_development;`
 - `CREATE DATABASE koa_vue_notes_testing;`
 - exit db cli client w/ `exit`
-- `npx knex migrate:latest` to prepare (ie create) our tables
-- `npx knex seed:run` to seed our tables with some data
+- `NODE_ENV=development npx knex migrate:latest` to prepare (ie create) our tables
+- `NODE_ENV=development npx knex seed:run` to seed our tables with some data
 
 ### Docker
 

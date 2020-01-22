@@ -40,6 +40,7 @@ class Note {
             let result = await findById(id);
             if (!result) return {};
             this._assign(result);
+            //this.constructor(result)  TODO old ver instead of our _assign()
         } catch (error) {
             console.log(error);
             throw new Error('ERROR');

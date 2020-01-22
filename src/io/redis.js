@@ -1,10 +1,7 @@
-
+// TODO: deleteme, superseded by repos
 import shortid from 'shortid';
 import _ from 'lodash';
-
-const getRedisClient = () => {
-    // IMPLEMENT YOUR OWN METHOD OF GETTING THE REDIS CLIENT,
-};
+import client from './redisClientProvider.js';
 
 const expSeconds = (days = 30) => {
     const secondsPerDay = 86400;
@@ -29,37 +26,20 @@ const parsify = {
     object: data => JSON.parse(data),
 };
 
+// TODO: https://nmajor.com/posts/simple-object-storage-in-redis-and-node
+// in addition to index{} in passed schema, maybe we should not pass attributes, but instead
+// read() & write() functions to io to-from redis?
 export default class RedisModel {
     constructor(schema) {
-        this.props = {
-            schema,
-            client: getRedisClient(),
-        };
-    }
-
-    _buildHashValues(data) {
-        const { schema: { attributes } } = this.props;
-        const hashValues = [];
-
-        _.each(data, (value, key) => {
-            const type = (attributes[key] || {}).kind;
-            const stringValue = stringify[type] ? stringify[type](value) : undefined;
-            if (!type || !stringValue) return null;
-
-            return hashValues.push(key, stringValue);
-        });
-
-        return _.isEmpty(hashValues) ? undefined : hashValues;
+        this.schema = schema;
     }
 
     _buildRedisKey(id) {
-        const { schema } = this.props;
-        return `${schema.namespace}:${id}`;
+        return `${this.schema.namespace}:${id}`;
     }
 
     _buildIndexName(indexName) {
-        const { schema } = this.props;
-        return `${schema.namespace}:${indexName}`;
+        return `${this.schema.namespace}:${indexName}`;
     }
 
     _unpackHashValues(data) {
@@ -78,12 +58,11 @@ export default class RedisModel {
     }
 
     _clearOldIndexes(indexName) {
-        const { client, schema } = this.props;
         return new Promise((resolve, reject) => {
             const now = new Date().getTime();
             const secondsPerDay = 86400;
             const args = [
-                this._buildIndexName(schema, indexName),
+                this._buildIndexName(this.schema, indexName),
                 (now + (expSeconds() - secondsPerDay) * 1000),
                 '-inf',
             ];
@@ -97,8 +76,6 @@ export default class RedisModel {
     }
 
     _getIndexedIds(indexName, offset, limit) {
-        const { client } = this.props;
-
         return this._clearOldIndexes(indexName)
             .then(() => new Promise((resolve, reject) => {
                 const args = [indexName, '+inf', '-inf', 'LIMIT', offset || 0, limit || 20];
@@ -111,48 +88,58 @@ export default class RedisModel {
             }));
     }
 
-    create(data) {
-        const { schema, client } = this.props;
-
+    create(chartId, seriesId, data) {
         return new Promise((resolve, reject) => {
             const multi = client.multi();
-            const id = buildId();
+            //const id = buildId();
+            const id = chartId;
             const redisKey = this._buildRedisKey(id);
+            const serialized = this.schema.serialize(data);
 
             // Handle the hash values
-            const hashValues = this._buildHashValues(data);
-            if (hashValues) {
-                multi.hmset(redisKey, hashValues);
-                multi.hmset(redisKey, 'EX', expSeconds());
-
-                // Handle indexes
-                if (schema.indexes) {
-                    _.each(schema.indexes, (index) => {
-                        if (index.shouldIndex(data)) {
-                            multi.zadd(this._buildIndexName(index.getName(data)), index.getValue(data), redisKey);
-                        }
-                    });
+            if (this.schema.serType === 'stringify') {
+                if (serialized) {
+                    multi.set(redisKey, serialized);
                 }
-
-                multi.exec((err) => {
-                    if (err) return reject(err);
-
-                    return resolve({ key: redisKey, _id: id, ...data });
-                });
-            } else {
-                reject(new Error('Empty redis hash data'));
+            } else if (this.schema.serType === 'array') {
+                if (serialized) {
+                    multi.rpush(redisKey, serialized);
+                    //.multi.hmset(redisKey, 'EX', expSeconds());  // TODO
+                } else {
+                    reject(new Error('Empty redis array data'));
+                }
+            } else {  // assuming Object
+                if (serialized) {
+                    multi.hmset(redisKey, serialized);
+                    multi.hmset(redisKey, 'EX', expSeconds());
+                } else {
+                    reject(new Error('Empty redis hash data'));
+                }
             }
+
+            // Handle indexes
+            if (this.schema.hasOwnProperty('indexes')) {
+                _.each(this.schema.indexes, indexConf => {
+                    if (indexConf.shouldIndex(data)) {
+                        multi.zadd(this._buildIndexName(`${id}_${indexConf.getName(data)}`), indexConf.getValue(data), redisKey);
+                    }
+                });
+            }
+
+            multi.exec((err, results) => {
+                if (err) return reject(err);
+
+                return resolve({ key: redisKey, _id: id, ...data });
+            });
         });
     }
 
     update(id, data) {
-        const { client } = this.props;
-
         return new Promise((resolve, reject) => {
             const redisKey = this._buildRedisKey(id);
 
             // Handle the hash values
-            const hashValues = this._buildHashValues(data);
+            const hashValues = this._buildObjectHashValues(data);
             if (hashValues) {
                 client.hmset(redisKey, hashValues, (err) => {
                     if (err) return reject(err);
@@ -164,8 +151,6 @@ export default class RedisModel {
     }
 
     findOne(id) {
-        const { client } = this.props;
-
         return new Promise((resolve, reject) => {
             const redisKey = this._buildRedisKey(id);
             client.hgetall(redisKey, (err, data) => {

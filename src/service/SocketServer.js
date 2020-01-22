@@ -64,9 +64,17 @@ class Sock {
         // Receiving connection to SocketIO:
         this.ioSock.on('connection', socket => {
             logger.info('  >>>>> a user connected!');
-            //i.sockets.emit('CHARTITO', payload);
+            socket.on('sub_chart', algoId => {
+                logger.info(`joining connection ${socket.id} to [${algoId}]`);
+                // TODO: report err if algoId doesn't exist?
+                socket.join(algoId);
+            });
+            socket.on('unsub_chart', algoId => {
+                logger.info(`leaving connection ${socket.id} from [${algoId}]`);
+                socket.leave(algoId);
+            });
 
-            sendStaticPayload(this.ioSock);
+            //sendStaticPayload(this.ioSock);
         });
 
         server.listen(4001);
@@ -99,7 +107,7 @@ const sendStaticPayload = ioSock => {
     logger.error('sending static...');
     //fs.writeFile('/tmp/waaaat.dat', JSON.stringify(vueChart), 'utf8', () => {});
     fs.readFile('/tmp/processed-lean.dat', 'utf8', (err, data) => {
-        ioSock.sockets.emit('CHARTITO', JSON.parse(data));
+        ioSock.sockets.emit('CHARTITO22O', JSON.parse(data));
         return;
 
         const a = JSON.parse(data);

@@ -2,10 +2,12 @@
 //in the knex seed/migrate command. Knex will error out if it is not specified.
 if (!process.env.NODE_ENV) { throw new Error('NODE_ENV not set') }
 
-import dotenv from 'dotenv'
-dotenv.config()
-
+import dotenv from 'dotenv';
+dotenv.config();
 export default {
+
+//require('dotenv').config();
+//module.exports = {
     testing: {
         client: 'mysql',
         debug: false,
@@ -16,7 +18,8 @@ export default {
             password: process.env.DB_PASSWORD,
             database: process.env.DB_DATABASE + '_testing',
             charset: 'utf8mb4',
-            collate: 'utf8mb4_unicode_ci'
+            collate: 'utf8mb4_unicode_ci',
+            timezone: 'UTC'
         },
         migrations: {
             directory: './src/db/migrations',
@@ -35,8 +38,8 @@ export default {
             password: process.env.DB_PASSWORD,
             database: process.env.DB_DATABASE + '_development',
             charset: 'utf8mb4',
-            collate: 'utf8mb4_unicode_ci'
-
+            collate: 'utf8mb4_unicode_ci',
+            timezone: 'UTC'
         },
         migrations: {
             directory: './src/db/migrations',
@@ -55,7 +58,8 @@ export default {
             password: process.env.DB_PASSWORD,
             database: process.env.DB_DATABASE + '_production',
             charset: 'utf8mb4',
-            collate: 'utf8mb4_unicode_ci'
+            collate: 'utf8mb4_unicode_ci',
+            timezone: 'UTC'
         },
         migrations: {
             directory: './src/db/migrations',

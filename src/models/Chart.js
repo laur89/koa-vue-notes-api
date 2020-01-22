@@ -10,22 +10,23 @@ class Chart {
 
     _assign(data) {
         this.id = data.id;
-        this.userId = data.userId;
-        this.title = data.title;
-        this.chartId = data.chartId;
+        this.type = data.type;
+        this.running = data.running;
+        this.startedAt = data.startedAt;
+        this.endedAt = data.endedAt;
     }
 
     async all(request) {
         try {
             return await db('charts')
                 .select('*')
-                .where({ userId: request.userId })
-                .where(
-                    'title',
-                    'like',
-                    '%' + (request.sort ? request.sort : '') + '%'
-                )
-                .orderBy('createdAt', request.order)
+                //.where({ userId: request.userId })
+                //.where(
+            //    'title',
+            //      'like',
+            //      '%' + (request.sort ? request.sort : '') + '%'
+                //  )
+                .orderBy('startedAt', request.order)
                 .offset(+request.page * +request.limit)
                 .limit(+request.limit);
         } catch (error) {
@@ -67,10 +68,10 @@ class Chart {
 
 async function findById(id) {
     try {
-        let [noteData] = await db('charts')
+        let [chartData] = await db('charts')
             .select('id', 'userId', 'title', 'chartId')
             .where({ id: id });
-        return noteData;
+        return chartData;
     } catch (error) {
         console.log(error);
         throw new Error('ERROR');

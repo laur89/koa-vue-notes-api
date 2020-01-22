@@ -1,8 +1,29 @@
 import joi from 'joi';
 //import d from 'date-fns'
 
-import { User } from '../models/User';
-import { Chart } from '../models/Chart';
+import { User } from '../models/User.js';
+import { Chart } from '../models/Chart.js';
+import {Note} from "../models/Note.js";
+import repoSelector from "../repository/repoSelector.js";
+import db from '../db/db.js';
+import redis from '../io/redisClientProvider.js';
+import d from "date-fns";
+
+import NodeCache from 'node-cache';
+import logger from "../logs/log.js";
+const chartConfCache = new NodeCache( { // note it's fronting redis
+    stdTTL: 60,  // in sec
+    useClones: false,
+    //checkperiod: 120
+} );
+
+const chartSchema = joi.object({
+    id: joi.string().trim().required(),
+    type: joi.string().trim().required(),
+    running: joi.boolean().required(),
+    startedAt: joi.date().timestamp().required(),
+    endedAt: joi.date().timestamp().allow(null),
+});
 
 class ChartController {
     // this guy lists all charts, paginated
@@ -10,8 +31,8 @@ class ChartController {
         const query = ctx.query;
 
         //Attach logged in user
-        const user = new User(ctx.state.user);
-        query.userId = user.id;
+        //const user = new User(ctx.state.user);
+        //query.userId = user.id;
 
         //Init a new chart object
         const chart = new Chart();
@@ -31,17 +52,200 @@ class ChartController {
         }
     }
 
-    async show(ctx) {
+    async fetchSlice(ctx) {
         const params = ctx.params;
+        const query = ctx.query;
         if (!params.id) ctx.throw(400, 'INVALID_DATA');
 
-        //Initialize chart
-        const chart = new Chart();
+        try {
+            const conf = await this.getChartConf(params.id);
+            //const rootChartRepo = repoSelector[conf.chart.readRepo];
+            //const lastDataPoint = await repo.getLast(params.id);
+            //const lastTimestamp = await rootChartRepo.getLastElement(params.id)[0];
+
+            // TODO: need to indicate if our end is already at the end, and we should subscribe! sub from FE or BE side?
+
+            // note promise order here is important:
+            const results = await Promise.all(
+                [repoSelector[conf.chart.readRepo].getBetween(conf.chart.id, query.start, query.end)].concat(
+                    conf.onchart.map(onchart =>
+                        repoSelector[onchart.readRepo].getBetween(onchart.id, query.start, query.end)
+                    ),
+                    conf.offchart.map(offchart =>
+                        repoSelector[offchart.readRepo].getBetween(offchart.id, query.start, query.end)
+                    )
+                )
+            );
+
+            ctx.body = {
+                meta: {
+                    isAtTheEnd: query.end >= results[0][results[0].length-1][0]  // TODO: perhaps not >=, but something like 'within' to allow some buffer to have to be just _near_ end?
+                },
+                chart: {
+                    ...conf.chart.conf,
+                    data: results.shift(),
+                },
+                onchart: conf.onchart.map(onchart => ({
+                    ...onchart.conf,
+                    data: results.shift(),
+                })),
+                offchart: conf.offchart.map(offchart => ({
+                    ...offchart.conf,
+                    data: results.shift(),
+                })),
+            };
+
+            //ctx.body = {
+            //    meta: {
+            //        isAtTheEnd: query.end >= lastTimestamp
+            //    },
+            //    chart: {
+            //        ...conf.chart.conf,
+            //        data: rootChartRepo.getBetween(conf.chart.id, query.start, query.end),
+            //    },
+            //    onchart: conf.onchart.map(onchart => ({
+            //        ...onchart.conf,
+            //        data: repoSelector[onchart.readRepo].getBetween(onchart.id, query.start, query.end),
+            //    })),
+            //    offchart: conf.offchart.map(offchart => ({
+            //        ...offchart.conf,
+            //        data: repoSelector[offchart.readRepo].getBetween(offchart.id, query.start, query.end),
+            //    })),
+            //};
+        } catch (error) {
+            console.log(error);
+            ctx.throw(400, 'INVALID_DATA');  // TODO: return 500 instead?
+        }
+    }
+
+    async fetchTail(ctx) {
+        const params = ctx.params;
+        const query = ctx.query;
+        if (!params.id) ctx.throw(400, 'INVALID_DATA');
 
         try {
-            //Find and show chart
-            await chart.find(params.id);
-            ctx.body = chart;
+            const conf = await this.getChartConf(params.id);
+            //const rootChartRepo = repoSelector[conf.chart.readRepo];
+            //const lastTimestamp = await rootChartRepo.getLastElement(params.id)[0];
+
+
+            // note promise order here is important:
+            const results = await Promise.all(
+                [repoSelector[conf.chart.readRepo].getTail(conf.chart.id, query.span)].concat(
+                    conf.onchart.map(onchart =>
+                        //repoSelector[onchart.readRepo].getBetween(onchart.id, lastTimestamp - query.span, lastTimestamp)
+                        repoSelector[onchart.readRepo].getTail(onchart.id, query.span)
+                    ),
+                    conf.offchart.map(offchart =>
+                        //repoSelector[offchart.readRepo].getBetween(offchart.id, lastTimestamp - query.span, lastTimestamp)
+                        repoSelector[offchart.readRepo].getTail(offchart.id, query.span)
+                    )
+                )
+            );
+
+            logger.error(`RESULTS: ${JSON.stringify(results)}, typeof: ${typeof results}`);
+
+            ctx.body = {
+                chart: {
+                    ...conf.chart.conf,
+                    data: results.shift(),
+                },
+                onchart: conf.onchart.map(onchart => ({
+                    ...onchart.conf,
+                    data: results.shift(),
+                })),
+                offchart: conf.offchart.map(offchart => ({
+                    ...offchart.conf,
+                    data: results.shift(),
+                })),
+            };
+
+            //ctx.body = {
+            //    chart: {
+            //        ...conf.chart.conf,
+            //        data: rootChartRepo.getBetween(conf.chart.id, lastTimestamp - query.span, lastTimestamp),
+            //    },
+            //    onchart: conf.onchart.map(onchart => ({
+            //        ...onchart.conf,
+            //        data: repoSelector[onchart.readRepo].getBetween(onchart.id, lastTimestamp - query.span, lastTimestamp),
+            //    })),
+            //    offchart: conf.offchart.map(offchart => ({
+            //        ...offchart.conf,
+            //        data: repoSelector[offchart.readRepo].getBetween(offchart.id, lastTimestamp - query.span, lastTimestamp),
+            //    })),
+            //};
+        } catch (error) {
+            console.log(error);
+            ctx.throw(400, 'INVALID_DATA');  // TODO: return 500 instead?
+        }
+    }
+
+    async getChartConf(id) {
+        //if (!id) ctx.throw(400, 'INVALID_DATA');
+        let conf = chartConfCache.get(id);
+        if (conf === undefined) {
+            conf = await redis.get(id);
+            if (!conf) throw new Error(`no chart conf found in redis for ${id}`);
+            logger.error(`got chartconf from redis: ${conf}`);
+            conf = JSON.parse(conf);
+            chartConfCache.set(id, conf);
+        }
+
+        logger.error(`chartconf: ${conf}`);
+        return conf;
+    }
+
+    async create(chartData) {
+        //Attach logged in user  ( TODO: get user from metadata sent over ZMQ?)
+        //const user = new User(ctx.state.user);
+        //request.userId = user.id;
+
+        //Create a new note object using the request params
+        const chart = new Chart(chartData);
+
+        //Validate the newly created note
+        const validator = joi.validate(chart, chartSchema);
+        if (validator.error) throw new Error(validator.error.details[0].message);
+
+        try {
+            let result = await chart.store();
+            //ctx.body = { message: 'SUCCESS', id: result };
+        } catch (error) {
+            console.log(error);
+            //ctx.throw(400, 'INVALID_DATA');  // TODO: throw regular err?
+        }
+    }
+
+    async update(ctx) {
+        const params = ctx.params;
+        const request = ctx.request.body;
+
+        //Make sure they've specified a note
+        if (!params.id) ctx.throw(400, 'INVALID_DATA');
+
+        //Find and set that note
+        const note = new Note();
+        await note.find(params.id);
+        if (!note) ctx.throw(400, 'INVALID_DATA');
+
+        //Grab the user //If it's not their note - error out
+        const user = new User(ctx.state.user);
+        if (note.userId !== user.id) ctx.throw(400, 'INVALID_DATA');
+
+        //Add the updated date value
+        note.updatedAt = d.format(new Date(), 'yyyy-MM-dd HH:mm:ss');
+
+        //Add the ip
+        request.ipAddress = ctx.ip;
+
+        //Replace the note data with the new updated note data
+        Object.keys(ctx.request.body).forEach(function(parameter, index) {
+            note[parameter] = request[parameter];
+        });
+
+        try {
+            await note.save();
+            ctx.body = { message: 'SUCCESS' };
         } catch (error) {
             console.log(error);
             ctx.throw(400, 'INVALID_DATA');

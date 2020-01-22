@@ -1,13 +1,15 @@
 import logger from '../logs/log.js';
 import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
 //import chartConverter from '../converters/vue/ChartConverter.js'
-import processLeanChart from './LeanDataProcessor.js';
 import {getRandInt, getRand} from '../utils/utils.js';
 
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
 import zmq from 'zeromq';
 import fs from 'fs';
+import ChartController from '../controllers/ChartController.js';
+
+import db from '../db/db.js';
 
 import joi from 'joi';
 //import {SeriesType} from "../constants/Global";
@@ -93,6 +95,7 @@ const eTypeToHasChartsCount = new Map();
 const hasores = new Map();
 const charts = new Map();
 const vueCharts = new Map();
+const algoIdsStoredInDB = new Set();
 
 const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to parametirze vue chart types
     chartName: 'Our chart name from API',  // TODO: need to get the name dynamically
@@ -104,16 +107,18 @@ const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to 
         },
         //onchart: [],
         //offchart: [{
-            //name: 'Equity',
-            //type: 'Candles',
-            //    data: []
+        //name: 'Equity',
+        //type: 'Candles',
+        //    data: []
         //}]
     }
 });
 
+const chartController = new ChartController();  // TODO: cc should be singleton
 class Consumer {
-    constructor(ioSock) {
+    constructor(ioSock, processor) {
         this.ioSock = ioSock;
+        this.processor = processor;
     }
 
     async start() {
@@ -122,11 +127,15 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        let vueChart = vueCharts.get('TODO hard-coded backtest ID');
+        const algoId = 'TODO hard-coded backtest ID';  // TODO, extract from LEAN msg eventually
+
+        let vueChart = vueCharts.get(algoId);
         if (vueChart === undefined) {
             vueChart = createChartScaffold();
-            vueCharts.set('TODO hard-coded backtest ID', vueChart)
+            vueCharts.set(algoId, vueChart)
         }
+
+
 
         let i, t;
         for await (const [msg] of sock) {
@@ -136,6 +145,21 @@ class Consumer {
             i = JSON.parse(msg);
             t = i['eType'];
             msgTypes.set(t, msgTypes.has(t) ? msgTypes.get(t) + 1 : 1);
+
+
+            if (!algoIdsStoredInDB.has(algoId)) {
+                await chartController.create({  // TODO: no point to await right? if not, then we'd just hope it gets stored
+                    id: algoId,
+                    type: 'backtest',  // TODO, how to identify?
+                    running: true,
+                    startedAt: new Date(),   // TODO: get time from LEAN
+                    //endedAt: null
+                });
+
+                algoIdsStoredInDB.add(algoId);
+            }
+
+
 
             if (ignoredTypes.includes(t)) {
                 continue;
@@ -153,12 +177,12 @@ class Consumer {
                 let charts_ = i.oResults.Charts;
                 for (const chartName in charts_) {
                     chartName &&
-                        charts.set(
-                            chartName,
-                            charts.has(chartName)
-                                ? charts.get(chartName) + 1
-                                : 1
-                        );
+                    charts.set(
+                        chartName,
+                        charts.has(chartName)
+                            ? charts.get(chartName) + 1
+                            : 1
+                    );
                     //logger.error(`chart ${chartName} seriestype: ${sTypeTrans(1)}`)
                     let c = charts_[chartName];
                     let series = c['Series'];
@@ -171,7 +195,7 @@ class Consumer {
                         );
                     }
 
-                    processLeanChart(c, vueChart);
+                    this.processor.processLeanChart(c, algoId);
                 }
             }
 
@@ -179,7 +203,7 @@ class Consumer {
 
             if (t === 'SystemDebug') {
                 logger.error('FIN algo');
-                //persistFinalState(vueChart);
+                persistFinalState(vueChart);
 
                 logger.debug(msgTypes);
                 msgTypes.clear();
@@ -189,6 +213,8 @@ class Consumer {
                 hasores.clear();
                 logger.debug(charts);
                 charts.clear();
+
+                algoIdsStoredInDB.delete(algoId);
             }
         }
     }

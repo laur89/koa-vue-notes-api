@@ -7,13 +7,15 @@ import logger from './logs/log.js';
 import userAgent from 'koa-useragent';
 import error from 'koa-json-error';
 import ratelimit from 'koa-ratelimit';
-import redis from 'ioredis';
 import Consumer from './service/ZMQConsumer.js';
 import Sock from './service/SocketServer.js';
+import Processor from './service/LeanDataProcessor.js';
+import redis from './io/redisClientProvider.js';
 
 //Routes
 import userActionsRouter from './routes/userActions.js';
 import notesRouter from './routes/notes.js';
+import chartsRouter from './routes/charts.js';
 
 //Initialize app
 const app = new Koa();
@@ -22,7 +24,8 @@ const app = new Koa();
 
 // ioSocket & ZMQ:
 const socket = new Sock(app.callback());
-new Consumer(socket).start();
+const processor = new Processor(socket);
+new Consumer(socket, processor).start();
 //socket.startPlayback();  // replay our mock data
 
 // TODO: delete this after debugging:
@@ -33,7 +36,7 @@ new Consumer(socket).start();
 //Here's the rate limiter
 app.use(
     ratelimit({
-        db: new redis(),
+        db: redis,
         duration: 60000,
         errorMessage:
             "Hmm, you seem to be doing that a bit too much - wouldn't you say?",
@@ -96,5 +99,7 @@ app.use(userActionsRouter.routes());
 app.use(userActionsRouter.allowedMethods());
 app.use(notesRouter.routes());
 app.use(notesRouter.allowedMethods());
+app.use(chartsRouter.routes());
+app.use(chartsRouter.allowedMethods());
 
 export default app;
