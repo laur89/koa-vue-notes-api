@@ -198,7 +198,7 @@ class ChartController {
         let conf = chartConfCache.get(id);
         if (conf === undefined) {
             conf = await redis.get(id);  // TODO: move to repo? create configRepo for this whole function, including chartConfCache? at least move key to its own namespace
-            if (!conf) throw new Error(`no chart conf found in redis for ${id}`);
+            if (!conf) throw new Error(`no chart conf found in redis for [${id}]`);
             logger.error(`got chartconf from redis: ${conf}`);
             conf = JSON.parse(conf);
             chartConfCache.set(id, conf);
