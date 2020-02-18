@@ -64,8 +64,8 @@ class Sock {
         // Receiving connection to SocketIO:
         this.ioSock.on('connection', socket => {
             logger.info('  >>>>> a user connected!');
-            socket.on('sub_chart', algoId => {
-                logger.info(`joining connection ${socket.id} to [${algoId}]`);
+            socket.on('sub_chart', (algoId, lastDataTimestamp) => {
+                logger.info(`joining connection ${socket.id} to [${algoId}]; last data: ${lastDataTimestamp}`);
                 // TODO: report err if algoId doesn't exist?
                 socket.join(algoId);
             });

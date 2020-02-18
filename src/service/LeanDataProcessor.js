@@ -4,35 +4,50 @@ import BaseData from "../model/BaseData.js";
 import IDate from "../utils/IDate.js";
 import TradeBarConsolidator from "../consolidators/TradeBarConsolidator.js";
 import BaseDataConsolidator from "../consolidators/BaseDataConsolidator.js";
-import {tradeBarToVueCandleBar} from '../converters/vue/ChartConverter.js';
+import {tradeBarToVueCandleBar, baseDataToVueDataPoint} from '../converters/vue/ChartConverter.js';
+import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
 import logger from "../logs/log.js";
 import {getMethodsNames} from '../utils/utils.js';
 //import CandleModel from '../model/vue/Candle.js';
 import VueCandleRepo from "../repository/VueCandleRepo.js";
 import repoSelector from "../repository/repoSelector.js";
 import redis from '../io/redisClientProvider.js';
+import val from './DataValidator.js';
 
 
 const ignoredCharts = ['Alpha', 'Insight Count', 'Alpha Assets', 'Benchmark'];
 const volatileRuntimeChartConfigs = new Map();  // only used in-memory while chart/algo is still live; not to be persisted;
 
-const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>[0-9]+[smhd])]$/;  // eg "EURUSD[H,1m]"
+//const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>[0-9]+[smhd])]$/;  // eg "EURUSD[H,1m]"
+const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>\d*(tick|sec|min|hr|day))]$/;  // eg "EURUSD[H,1min]"
 const RSIRgx = /^RSI\((?<period>\d+),(?<movingAvgType>\w+),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)$/;  // eg "RSI(14,Wilders,EURUSD_hr)"
-const timeframeRgx = /^(?<no>\d+)(?<val>[smhd])$/;  // eg "1m"
+
+// time postfix comes from QCAlgorithm.Indicators.cs
+//const timeframeRgx = /^(?<no>\d+)(?<val>[smhd])$/;  // eg "1m"
+const timeframeRgx = /^(?<no>\d*)(?<val>(tick|sec|min|hr|day))$/;  // eg "1m"
 
 const timeframeConversion = {
-    s: 1000,
-    m: 60 * 1000,
-    h: 3600 * 1000,
-    d: 24 * 3600 * 1000
+    //s: 1000,
+    //m: 60 * 1000,
+    //h: 3600 * 1000,
+    //d: 24 * 3600 * 1000
+    sec: 1000,
+    min: 60 * 1000,
+    hr: 3600 * 1000,
+    day: 24 * 3600 * 1000
+    // TODO: what to do with tick?
 };
 
 const timeframeToPeriod = tf => {
     const match = timeframeRgx.exec(tf);
     if (match === null) throw new Error(`Unexpected timeframe from LEAN: ${tf}`);  // sanity check
-    return parseInt(match.groups.no) * timeframeConversion[match.groups.val];
+    //logger.error(`tf ${tf} .no value: [${match.groups.no}]`);
+
+    const n = match.groups.no || 1;
+    return parseInt(n) * timeframeConversion[match.groups.val];
 };
 
+// TODO: need to change postfixes to sec,min,hr...
 const periodToTimeframe = periodMs => {
     const hours = periodMs / 3600000;
     const minutes = (periodMs % 3600000) / 60000;
@@ -57,13 +72,12 @@ const toBaseData = (symbol, d) => {
 const convertAssertPriceToTradeBars = (chart, chartConf) => {
     const series = chart.Series;
     let index = null;
-    const bars = [];
     let symbol, timeframe, periodMs;
 
     if (chartConf === undefined) {
         //const j = series[Object.keys(series)[0]];
         const match = priceRgx.exec(Object.keys(series)[0]);
-        if (match === null) throw new Error('Unexpected Asset Price series name');  // sanity check
+        if (match === null) throw new Error(`Unexpected Asset Price series name: [${Object.keys(series)[0]}]`);  // sanity check
         symbol = match.groups.symbol;
         //const ohlc = match.groups.ohlc;
         timeframe = match.groups.timeframe;
@@ -83,6 +97,7 @@ const convertAssertPriceToTradeBars = (chart, chartConf) => {
         throw new Error(`${symbol} tradebar series lengths didn't match or were equal to 0`);
     }
 
+    const bars = [];
     for (let i = 0; i < o.length; i++) {
         const bar = new TradeBar();
         bar.Symbol = symbol;
@@ -93,15 +108,16 @@ const convertAssertPriceToTradeBars = (chart, chartConf) => {
         bar.High = h[i].y;
         bar.Low = l[i].y;
         bar.Close = c[i].y;
+
         bars.push(bar);
     }
 
     if (chartConf === undefined) {
-        // TODO: should we also store the running bar tally in memory? at least until if/when we move to kafka
         return [bars, {
             //
             conf: {
                 type: 'Candles',
+                name: 'TODO AP name',
                 chartName: 'Our chart name from api',
                 //data: [],
                 settings: {}
@@ -154,7 +170,6 @@ const processStratEquity = (c, chartConf) => {
             consolidators.push(c);
         }
 
-        // TODO: should we also store the running bar tally in memory? at least until if/when we move to kafka
         return [equityBaseData, {
             timeframe: {
                 symbol: periodToTimeframe(periodMs),
@@ -170,8 +185,65 @@ const processStratEquity = (c, chartConf) => {
     }
 };
 
-const processIndicators = (c, chart) => {
+// eg chart [Indicators]:series [RSI(14,Wilders,EURUSD_hr)] type: [Line]
+const processIndicator = (series, chartConf) => {
+    let symbol, timeframe, periodMs, seriesName;
 
+    if (chartConf === undefined) {
+        const match = RSIRgx.exec(series.Name);
+        if (match === null) throw new Error(`Unexpected Indicators series name: [${series.Name}]`);  // sanity check
+        seriesName = match.input;
+        //symbol = match.groups.symbol;  TODO make it dynamic
+        symbol = 'RSI';
+        timeframe = match.groups.timeframe;
+        periodMs = timeframeToPeriod(timeframe);
+    } else {
+        symbol = chartConf.symbol;
+        timeframe = chartConf.timeframe.symbol;
+        periodMs = chartConf.timeframe.periodMs;
+        seriesName = chartConf.seriesName;
+    }
+
+    const dataPoints = [];
+    for (const dp of series.Values) {
+        const dataPoint = new BaseData();
+        dataPoint.Symbol = symbol;
+        dataPoint.Period = periodMs;
+        dataPoint.Time = new IDate(dp.x * 1000); // LEAN sends data in seconds
+        dataPoint.Value = dp.y;
+
+        dataPoints.push(dataPoint);
+    }
+
+    if (chartConf === undefined) {
+        return [dataPoints, {
+            //
+            conf: {
+                //type: sTypeTrans(series[seriesName].SeriesType),
+                type: 'RSI',
+                name: 'TODO RSI name',
+                settings: {
+                    upper: 70,
+                    lower: 30,
+                    backColor: '#9b9ba316',
+                    bandColor: '#666',
+                }
+                // TODO: we should also store series index somewhere
+            },
+            timeframe: {
+                symbol: timeframe,
+                periodMs: periodMs
+            },
+            symbol: symbol,
+            seriesName: seriesName,
+            //isInRedis: false,   // marks if root element ('chart') for this algo has been stored in redis & is discoverable
+            //bars: bars,
+            consolidators: getCommonConsolidators(periodMs, TradeBarConsolidator, () => {}),
+            consolidatorConstructor: TradeBarConsolidator
+        }];
+    }
+
+    return [dataPoints, chartConf];
 };
 
 const getCommonConsolidators = (periodMs, consolidatorConstructor, onConsolidated) => (
@@ -180,9 +252,7 @@ const getCommonConsolidators = (periodMs, consolidatorConstructor, onConsolidate
         .filter(p => p > periodMs)
         .map(p => {
                 const c = new consolidatorConstructor(p);
-                c.DataConsolidated.push((sender, data) => {
-                    onConsolidated(data);
-                });
+                c.DataConsolidated.push((sender, data) => onConsolidated(data));
                 return c;
             }
         )
@@ -199,36 +269,63 @@ export default class Processor {
     processLeanChart(c, algoId) {
         if (ignoredCharts.includes(c.Name)) return;
 
-        let chartConf = volatileRuntimeChartConfigs.get(algoId + c.Name);
-        let chartMissing = chartConf === undefined;
-        const id = `${algoId}:chart:${c.Name}`;
+        switch (c.Name) {
+            case 'Asset Price':
+                this.plc(c, null, algoId, `${algoId}:chart:${c.Name}`)
+                break;
+            case 'Indicators':
+                for (const sKey in c.Series) {
+                    this.plc(c, c.Series[sKey], algoId, `${algoId}:offchart:${c.Name}:${sKey}`)
+                }
 
+                break;
+            case 'Strategy Equity':
+                return;  // TODO: move this block to plc()
+                [data, chartConf] = processStratEquity(c, chartConf);
+                //getCommonConsolidators(periodMs, TradeBarConsolidator, () => {})
+                //vueChart.chart.offchart[0].data.push(...bars);
+                break;
+            default:
+                // TODO: should we actively blacklist charts (ignoredCharts), and log errors here if unknown is ocurred, or just drop non-white list ones?
+                return;
+        }
+    };
+
+    // TODO: compose 'id' before and pass here? that way we could query chartConf at the head;
+    plc(c, series, algoId, id) {
         let data;  // tradebars or basedata
+        let vueData;
+
+        let chartConf = volatileRuntimeChartConfigs.get(id);
+        const chartMissing = chartConf === undefined;
+
         switch (c.Name) {
             case 'Asset Price':
                 [data, chartConf] = convertAssertPriceToTradeBars(c, chartConf);
-                //vueChart.chart.chart.data.push(...data.map(tradeBarToVueCandleBar));
-
-                const vueBars = data.map(tradeBarToVueCandleBar);
-                this.ioSock.to(algoId).emit('chart', {
-                    conf: chartConf.conf,
-                    data: vueBars
+                vueData = data.map(tradeBarToVueCandleBar);
+                this.ioSock.to(algoId).emit('data', {
+                    chart: {
+                        ...chartConf.conf,
+                        data: vueData
+                    }
                 });
+
+                val.feed(algoId, vueData);
 
                 // TODO: perhaps more efficient to check if key that stars w/ 'algoId:chart:' exists? that'd mean that chart,on-offChart are stored under separate keys tho...
                 // then again, we'd only win on read, as we expect it all to be there...
                 // TODO2: put this guy also into node-cache for even faster access?
                 redis.get(algoId).then(result => {  // no need to block right?
-                    //logger.error(algoId + " redis query result: " + result);
-                    //logger.error(algoId + " redis query result type: " + typeof result);
+                    const c = {
+                        readRepo: 'vueCandle',  // so we know which repo to read the data with
+                        conf: chartConf.conf,
+                        id  // for accessing persisted candle data;
+                    };
 
-                    if (!result) {
+                    if (!result) {  // null if not found
                         redis.set(algoId, JSON.stringify({
-                            chart: {
-                                readRepo: 'vueCandle',  // so we know which repo to read the data with
-                                conf: chartConf.conf,
-                                id  // for accessing persisted candle data;
-                            },
+                            running: true,
+                            chart: c,
                             onchart: [],
                             offchart: []
                         }));  // TODO log out write errors!
@@ -237,12 +334,7 @@ export default class Processor {
 
                     result = JSON.parse(result);
                     if (result.chart === null) {
-                        // TODO: prolly have to parse result first?
-                        result.chart = {
-                            readRepo: 'vueCandle',
-                            conf: chartConf.conf,
-                            id
-                        };
+                        result.chart = c;
                         redis.set(algoId, JSON.stringify(result));  // TODO log out write errors!
                     }
                 });
@@ -250,9 +342,7 @@ export default class Processor {
                 //redis.set(`${algoId}_chart_conf`, JSON.stringify(chartConf.conf));  // think all chart conf is ok to store under <algoId> key
 
                 // store bars in redis:
-                vueBars.forEach(bar =>
-                    VueCandleRepo.write(id, bar)  // no need to block right?
-                );
+                vueData.forEach(bar => VueCandleRepo.write(id, bar));
 
 
                 // add consolidator:
@@ -261,25 +351,51 @@ export default class Processor {
                 //    putDataTogetherAndPushToSocket()
                 //});
                 break;
-            case 'Strategy Equity':
-                [data, chartConf] = processStratEquity(c, chartConf);
-                //getCommonConsolidators(periodMs, TradeBarConsolidator, () => {})
-                //vueChart.chart.offchart[0].data.push(...bars);
-                break;
+            case 'Indicators':
+                const sKey = series.Name;
 
-
-                this.ioSock.to(algoId).emit('offchart', {
-                    //id: `${chartIdTODO}:chart`,
-                    id: ['chart'], // or ['onchart', 'our EMA']
-                    conf: chartConf.conf,
-                    data: vueBars
+                [data, chartConf] = processIndicator(c.Series[sKey], chartConf);
+                vueData = data.map(baseDataToVueDataPoint);
+                this.ioSock.to(algoId).emit('data', {
+                    offchart: [
+                        {
+                            ...chartConf.conf,
+                            data: vueData
+                        }
+                    ],
                 });
-            //case 'Indicators':
-            //processIndicators(c, chartConf);
-            //break;
-            default:
-                // TODO: should we actively blacklist charts (ignoredCharts), and log errors here if unknown is ocurred, or just drop non-white list ones?
-                return;
+
+                //val.feed(algoId, vueBars);
+
+                // TODO: put this guy also into node-cache for even faster access?
+                redis.get(algoId).then(result => {  // no need to block right?
+                    const oc = {
+                        readRepo: 'vueCandle',  // so we know which repo to read the data with
+                        conf: chartConf.conf,
+                        id  // for accessing persisted candle data;
+                    };
+
+                    if (!result) {
+                        redis.set(algoId, JSON.stringify({
+                            running: true,
+                            chart: null,
+                            onchart: [],
+                            offchart: [oc]
+                        }));  // TODO log out write errors!
+                        return;
+                    }
+
+                    result = JSON.parse(result);
+                    if (result.offchart.find(oc => oc.id === id) === undefined) {
+                        result.offchart.push(oc);
+                        redis.set(algoId, JSON.stringify(result));  // TODO log out write errors!
+                    }
+                });
+
+                // store data in redis:
+                vueData.forEach(bar => VueCandleRepo.write(id, bar));
+
+                break;
         }
 
         chartConf.consolidators.forEach(consolidator => {
@@ -295,7 +411,7 @@ export default class Processor {
         //});
 
         if (chartMissing) {
-            volatileRuntimeChartConfigs.set(algoId + c.Name, chartConf);
+            volatileRuntimeChartConfigs.set(id, chartConf);
         }
     };
 }

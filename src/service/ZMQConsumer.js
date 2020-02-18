@@ -9,9 +9,12 @@ import zmq from 'zeromq';
 import fs from 'fs';
 import ChartController from '../controllers/ChartController.js';
 
+import val from './DataValidator.js';
+
 import db from '../db/db.js';
 
 import joi from 'joi';
+import redis from "../io/redisClientProvider.js";
 //import {SeriesType} from "../constants/Global";
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
@@ -127,7 +130,7 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        const algoId = 'TODO hard-coded backtest ID';  // TODO, extract from LEAN msg eventually
+        const algoId = 'TODO hard-coded backtest ID44';  // TODO, extract from LEAN msg eventually
 
         let vueChart = vueCharts.get(algoId);
         if (vueChart === undefined) {
@@ -160,9 +163,14 @@ class Consumer {
             }
 
 
-
             if (ignoredTypes.includes(t)) {
                 continue;
+            } else if (i['dProgress'] === 1) {
+                // we've reached end
+                const d = i.oResults.Charts['Asset Price']['Series']['EURUSD[O,1min]'].Values;
+                logger.error(`final monster-msg values size: ${d.length}`);
+                logger.error(`monster rannge: ${d[0].x} - ${d[d.length-1].x}`);
+                val.printRange(algoId);
             } else if (i.hasOwnProperty('oResults')) {
                 hasores.set(t, hasores.has(t) ? hasores.get(t) + 1 : 1);
 
@@ -215,10 +223,43 @@ class Consumer {
                 charts.clear();
 
                 algoIdsStoredInDB.delete(algoId);
+                setAlgoFinished(algoId)
+
+                val.reset(algoId);
             }
         }
     }
 }
+
+const setAlgoFinished = async algoId => {
+    // redis:
+    redis.get(algoId).then(result => {  // no need to block right?
+        //logger.error(algoId + " redis query result: " + result);
+        //logger.error(algoId + " redis query result type: " + typeof result);
+
+        if (!result) {
+            // TODO throw?
+        }
+
+        result = JSON.parse(result);
+        // TODO: prolly have to parse result first?
+        result.running = false;
+        redis.set(algoId, JSON.stringify(result));  // TODO log out write errors!
+    });
+
+    // db:
+    const chart = new Chart();
+    await chart.find(algoId);
+    chart.running = false
+    chart.endedAt = new Date()  // TODO: get algo endDate from LEAN response
+
+    try {
+        await chart.save();
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 
 const persistFinalState = state => {
     const timeRand = Math.floor(getRandInt(1000000, 9000000) * 60000);

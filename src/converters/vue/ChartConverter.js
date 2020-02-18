@@ -9,4 +9,11 @@ const tradeBarToVueCandleBar = bar => (
     ]
 );
 
-export { tradeBarToVueCandleBar }
+const baseDataToVueDataPoint = dp => (
+    [
+        dp.Time.getTime(),
+        dp.Value,
+    ]
+);
+
+export { tradeBarToVueCandleBar, baseDataToVueDataPoint }

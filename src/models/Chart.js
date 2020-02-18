@@ -40,6 +40,7 @@ class Chart {
             let result = await findById(id);
             if (!result) return {};
             this._assign(result);
+            // TODO: return this for chaining?
         } catch (error) {
             console.log(error);
             throw new Error('ERROR');
@@ -54,6 +55,18 @@ class Chart {
             throw new Error('ERROR');
         }
     }
+
+    async save() {
+        try {
+            return await db('charts')
+                .update(this)
+                .where({ id: this.id });
+        } catch (error) {
+            console.log(error);
+            throw new Error('ERROR');
+        }
+    }
+
     //async destroy(request) {
         //try {
             //return await db('charts')
@@ -68,8 +81,8 @@ class Chart {
 
 async function findById(id) {
     try {
-        let [chartData] = await db('charts')
-            .select('id', 'userId', 'title', 'chartId')
+        const [chartData] = await db('charts')
+            .select('id', 'type', 'running', 'startedAt', 'endedAt')
             .where({ id: id });
         return chartData;
     } catch (error) {

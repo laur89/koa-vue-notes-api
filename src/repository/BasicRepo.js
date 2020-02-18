@@ -107,7 +107,7 @@ export default class Repository {
             const multi = client.multi();
             //const id = id; // = buildId();
             //const redisKey = this._buildRedisKey(id);
-            const dataKey = shortid.generate();
+            const dataKey = `${id}:${shortid.generate()}`;
             const serialized = this.schema.serialize(data);
 
             if (serialized) {
@@ -183,9 +183,21 @@ export default class Repository {
         return new Promise((resolve, reject) => {
             client.zrevrangebyscore([this._buildIndexName(`${id}:${indexName}`), '+inf', '-inf', 'WITHSCORES', 'LIMIT', 0, 1], (err, results) => {
                 if (err) return reject(err);
-                if (results.length !== 2) return reject(new Error(`couldn't find last item score for ${id}`));
+                if (results.length !== 2) return reject(new Error(`couldn't find last item score for [${id}]`));
 
 //                logger.info(`LAST EL SCORE: ${results[1]}, ${typeof results[1]}`);
+                return resolve(parseInt(results[1]));
+            });
+        });
+    }
+
+    getFirstElementScore(id, indexName = 'timestamp') {
+        return new Promise((resolve, reject) => {
+            client.zrangebyscore([this._buildIndexName(`${id}:${indexName}`), '-inf', '+inf', 'WITHSCORES', 'LIMIT', 0, 1], (err, results) => {
+                if (err) return reject(err);
+                if (results.length !== 2) return reject(new Error(`couldn't find first item score for [${id}]`));
+
+//                logger.info(`FIRST EL SCORE: ${results[1]}, ${typeof results[1]}`);
                 return resolve(parseInt(results[1]));
             });
         });
@@ -197,7 +209,7 @@ export default class Repository {
         //    return this.getBetween(algoId, max - span, max, indexName);
         //});
         return this.getLastElementScore(id, indexName).then(lastElementScore =>
-            this.getBetween(id, lastElementScore - span, lastElementScore + 1000, indexName)
+            this.getBetween(id, lastElementScore - span, lastElementScore, indexName)
         );
     }
 
