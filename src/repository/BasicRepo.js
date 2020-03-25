@@ -219,4 +219,22 @@ export default class Repository {
         return this._getIndexedIdsBetween(this._buildIndexName(`${id}:${indexName}`), min, max)
             .then(results => Promise.all(results.map(this.findOne, this)));  // TODO need to provide this context to map()?
     }
+
+    getDataPoints(id, anchor, numberOfDataPoints, direction, indexName = 'timestamp') {
+
+        const redisArgs = [
+            this._buildIndexName(`${id}:${indexName}`),
+            anchor,  // min or max, depending on direction
+            direction === 1 ? '+inf' : '-inf',  // min or max, depending on direction
+            'LIMIT', 0, numberOfDataPoints
+        ];
+
+        const f = direction === 1 ? client.zrangebyscore : client.zrevrangebyscore;
+        return f.call(client, redisArgs)
+            .then(results => {
+                const a = results.map(this.findOne, this);
+                return Promise.all(direction === 1 ? a : a.reverse());
+            })
+            .catch(cause => new Error(`couldn't find range of data for [${id}] by [${redisArgs[1]}/${redisArgs[2]}]`));
+    }
 }

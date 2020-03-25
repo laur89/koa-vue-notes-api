@@ -56,9 +56,10 @@ class ChartController {
 
     async fetchSlice(ctx) {
         const params = ctx.params;
-        const { start, end } = aqp(ctx.query).filter;
+        const { anchorTime, numberOfDataPoints, direction } = aqp(ctx.query).filter;
 
         if (!params.id) ctx.throw(400, 'INVALID_DATA');
+        if (Math.abs(direction) !== 1) ctx.throw(400, 'direction can be 1 or -1');
 
         try {
             const conf = await this.getAlgoChartConf(params.id);
@@ -74,33 +75,33 @@ class ChartController {
                 [].concat(
                     chartRepo.getFirstElementScore(conf.chart.id),
                     chartRepo.getLastElementScore(conf.chart.id),
-                    chartRepo.getBetween(conf.chart.id, start, end),
+                    chartRepo.getDataPoints(conf.chart.id, anchorTime, numberOfDataPoints, direction),
                     conf.onchart.map(onchart =>
-                        repoSelector[onchart.readRepo].getBetween(onchart.id, start, end)
+                        repoSelector[onchart.readRepo].getDataPoints(onchart.id, anchorTime, numberOfDataPoints, direction),
                     ),
                     conf.offchart.map(offchart =>
-                        repoSelector[offchart.readRepo].getBetween(offchart.id, start, end)
+                        repoSelector[offchart.readRepo].getDataPoints(offchart.id, anchorTime, numberOfDataPoints, direction),
                     )
                 )
             );
 
             const firstElementTime = results.shift();
             const lastElementTime = results.shift();
+            const mainChart = results.shift();
 
-            if (results[0].length === 0) {
+            if (mainChart.length === 0) {
                 ctx.body = []
             } else {
 
-                //const isBeginning = results[0][0][0] === firstElementTime;
-                const isHead = end >= lastElementTime;
-                //const isHead = results[0][results[0].length-1][0] === lastElementTime;
-
                 const markers = [];
-                if (start <= firstElementTime) markers.push('isBeginning');
-                if (isHead && !conf.running) {
-                    markers.push('isEnd');
-                } else if (isHead) {
-                    markers.push('isHead');
+
+                if (mainChart[0][0] === firstElementTime) markers.push('isBeginning');
+                if (mainChart[mainChart.length - 1][0] === lastElementTime) {
+                    if (!conf.running) {
+                        markers.push('isEnd');
+                    } else {
+                        markers.push('isHead');
+                    }
                 }
 
                 ctx.body = {
@@ -109,7 +110,7 @@ class ChartController {
                     },
                     chart: {
                         ...conf.chart.conf,
-                        data: results.shift(),
+                        data: mainChart,
                     },
                     onchart: conf.onchart.map(onchart => ({
                         ...onchart.conf,
@@ -154,15 +155,14 @@ class ChartController {
             //logger.error(`RESULTS: ${JSON.stringify(results)}, typeof: ${typeof results}`);
 
             const firstElementTime = results.shift();
+            const mainChart = results.shift();
 
-            if (results[0].length === 0) {
+            if (mainChart.length === 0) {
                 ctx.body = []
             } else {
-                //const lastElementTime = results.shift();
-                //const isHead = results[0][results[0].length-1][0] === lastElementTime;
 
                 const markers = ['isTail'];
-                if (results[0][0][0] === firstElementTime) markers.push('isBeginning');
+                if (mainChart[0][0] === firstElementTime) markers.push('isBeginning');
                 if (conf.running) {
                     markers.push('isHead');
                 } else {
@@ -175,7 +175,7 @@ class ChartController {
                     },
                     chart: {
                         ...conf.chart.conf,
-                        data: results.shift(),
+                        data: mainChart,
                     },
                     onchart: conf.onchart.map(onchart => ({
                         ...onchart.conf,
