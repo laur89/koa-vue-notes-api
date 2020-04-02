@@ -1,8 +1,7 @@
-
 import shortid from 'shortid';
 import _ from 'lodash';
 import client from '../io/redisClientProvider.js';
-import logger from "../logs/log.js";
+import logger from '../logs/log.js';
 
 const expSeconds = (days = 30) => {
     const secondsPerDay = 86400;
@@ -44,7 +43,9 @@ export default class Repository {
     }
 
     _unpackHashValues(data) {
-        const { schema: { attributes } } = this.props;
+        const {
+            schema: { attributes },
+        } = this.props;
         const obj = {};
 
         _.each(data, (value, key) => {
@@ -64,7 +65,7 @@ export default class Repository {
             const secondsPerDay = 86400;
             const args = [
                 this._buildIndexName(indexName),
-                (now + (expSeconds() - secondsPerDay) * 1000),
+                now + (expSeconds() - secondsPerDay) * 1000,
                 '-inf',
             ];
 
@@ -77,16 +78,25 @@ export default class Repository {
     }
 
     _getIndexedIds(indexName, offset, limit) {
-        return this._clearOldIndexes(indexName)
-            .then(() => new Promise((resolve, reject) => {
-                const args = [indexName, '+inf', '-inf', 'LIMIT', offset || 0, limit || 20];
+        return this._clearOldIndexes(indexName).then(
+            () =>
+                new Promise((resolve, reject) => {
+                    const args = [
+                        indexName,
+                        '+inf',
+                        '-inf',
+                        'LIMIT',
+                        offset || 0,
+                        limit || 20,
+                    ];
 
-                client.zrevrangebyscore(args, (err, results) => {
-                    if (err) return reject(err);
+                    client.zrevrangebyscore(args, (err, results) => {
+                        if (err) return reject(err);
 
-                    return resolve(results);
-                });
-            }));
+                        return resolve(results);
+                    });
+                })
+        );
     }
 
     // TODO: not much point in creating our explicit Promise here, is it?:
@@ -121,7 +131,13 @@ export default class Repository {
             if (this.schema.hasOwnProperty('indexes')) {
                 this.schema.indexes.forEach(indexConf => {
                     if (indexConf.shouldIndex(data)) {
-                        multi.zadd(this._buildIndexName(`${id}:${indexConf.getName(data)}`), indexConf.getValue(data), dataKey);
+                        multi.zadd(
+                            this._buildIndexName(
+                                `${id}:${indexConf.getName(data)}`
+                            ),
+                            indexConf.getValue(data),
+                            dataKey
+                        );
                     }
                 });
             }
@@ -142,7 +158,7 @@ export default class Repository {
             // Handle the hash values
             const hashValues = this._buildObjectHashValues(data);
             if (hashValues) {
-                client.hmset(redisKey, hashValues, (err) => {
+                client.hmset(redisKey, hashValues, err => {
                     if (err) return reject(err);
 
                     return resolve();
@@ -164,42 +180,90 @@ export default class Repository {
 
     // TODO: this function was likely copypasta, remove
     fromIndex(indexName) {
-        return this._getIndexedIds(indexName, undefined, 250)
-            .then(results => Promise.all(results.map(this.findOne, this)));  // TODO need to provide this context to map()?
+        return this._getIndexedIds(indexName, undefined, 250).then(results =>
+            Promise.all(results.map(this.findOne, this))
+        ); // TODO need to provide 'this' context to map()?
     }
 
     getLastElement(id, indexName = 'timestamp') {
         return new Promise((resolve, reject) => {
-            client.zrevrangebyscore([this._buildIndexName(`${id}:${indexName}`), '+inf', '-inf', 'LIMIT', 0, 1], (err, results) => {
-                if (err) return reject(err);
-                if (results.length !== 1) return reject(new Error(`couldn't find last item for ${id}`));
+            client
+                .zrevrangebyscore(
+                    [
+                        this._buildIndexName(`${id}:${indexName}`),
+                        '+inf',
+                        '-inf',
+                        'LIMIT',
+                        0,
+                        1,
+                    ],
+                    (err, results) => {
+                        if (err) return reject(err);
+                        if (results.length !== 1)
+                            return reject(
+                                new Error(`couldn't find last item for ${id}`)
+                            );
 
-                return resolve(results[0]);
-            }).then(lastElementId => this.findOne(lastElementId));
+                        return resolve(results[0]);
+                    }
+                )
+                .then(lastElementId => this.findOne(lastElementId));
         });
     }
 
     getLastElementScore(id, indexName = 'timestamp') {
         return new Promise((resolve, reject) => {
-            client.zrevrangebyscore([this._buildIndexName(`${id}:${indexName}`), '+inf', '-inf', 'WITHSCORES', 'LIMIT', 0, 1], (err, results) => {
-                if (err) return reject(err);
-                if (results.length !== 2) return reject(new Error(`couldn't find last item score for [${id}]`));
+            client.zrevrangebyscore(
+                [
+                    this._buildIndexName(`${id}:${indexName}`),
+                    '+inf',
+                    '-inf',
+                    'WITHSCORES',
+                    'LIMIT',
+                    0,
+                    1,
+                ],
+                (err, results) => {
+                    if (err) return reject(err);
+                    if (results.length !== 2)
+                        return reject(
+                            new Error(
+                                `couldn't find last item score for [${id}]`
+                            )
+                        );
 
-//                logger.info(`LAST EL SCORE: ${results[1]}, ${typeof results[1]}`);
-                return resolve(parseInt(results[1]));
-            });
+                    //                logger.info(`LAST EL SCORE: ${results[1]}, ${typeof results[1]}`);
+                    return resolve(parseInt(results[1]));
+                }
+            );
         });
     }
 
     getFirstElementScore(id, indexName = 'timestamp') {
         return new Promise((resolve, reject) => {
-            client.zrangebyscore([this._buildIndexName(`${id}:${indexName}`), '-inf', '+inf', 'WITHSCORES', 'LIMIT', 0, 1], (err, results) => {
-                if (err) return reject(err);
-                if (results.length !== 2) return reject(new Error(`couldn't find first item score for [${id}]`));
+            client.zrangebyscore(
+                [
+                    this._buildIndexName(`${id}:${indexName}`),
+                    '-inf',
+                    '+inf',
+                    'WITHSCORES',
+                    'LIMIT',
+                    0,
+                    1,
+                ],
+                (err, results) => {
+                    if (err) return reject(err);
+                    if (results.length !== 2)
+                        return reject(
+                            new Error(
+                                `couldn't find first item score for [${id}]`
+                            )
+                        );
 
-//                logger.info(`FIRST EL SCORE: ${results[1]}, ${typeof results[1]}`);
-                return resolve(parseInt(results[1]));
-            });
+                    //                logger.info(`FIRST EL SCORE: ${results[1]}, ${typeof results[1]}`);
+                    return resolve(parseInt(results[1]));
+                }
+            );
         });
     }
 
@@ -209,32 +273,56 @@ export default class Repository {
         //    return this.getBetween(algoId, max - span, max, indexName);
         //});
         return this.getLastElementScore(id, indexName).then(lastElementScore =>
-            this.getBetween(id, lastElementScore - span, lastElementScore, indexName)
+            this.getBetween(
+                id,
+                lastElementScore - span,
+                lastElementScore,
+                indexName
+            )
         );
     }
 
     getBetween(id, min, max, indexName = 'timestamp') {
         //logger.info(`-> getBetween: ${results[1]}, ${typeof results[1]}`);
-//        logger.info(`-> getBetween: ${JSON.stringify(arguments)}`);
-        return this._getIndexedIdsBetween(this._buildIndexName(`${id}:${indexName}`), min, max)
-            .then(results => Promise.all(results.map(this.findOne, this)));  // TODO need to provide this context to map()?
+        //        logger.info(`-> getBetween: ${JSON.stringify(arguments)}`);
+        return this._getIndexedIdsBetween(
+            this._buildIndexName(`${id}:${indexName}`),
+            min,
+            max
+        ).then(results => Promise.all(results.map(this.findOne, this))); // TODO need to provide this context to map()?
     }
 
-    getDataPoints(id, anchor, numberOfDataPoints, direction, indexName = 'timestamp') {
-
+    getDataPoints(
+        id,
+        anchor,
+        numberOfDataPoints,
+        direction,
+        indexName = 'timestamp'
+    ) {
         const redisArgs = [
             this._buildIndexName(`${id}:${indexName}`),
-            anchor,  // min or max, depending on direction
-            direction === 1 ? '+inf' : '-inf',  // min or max, depending on direction
-            'LIMIT', 0, numberOfDataPoints
+            anchor, // min or max, depending on direction
+            direction === 1 ? '+inf' : '-inf', // min or max, depending on direction
+            'LIMIT',
+            0,
+            numberOfDataPoints,
         ];
 
-        const f = direction === 1 ? client.zrangebyscore : client.zrevrangebyscore;
-        return f.call(client, redisArgs)
+        const f =
+            direction === 1 ? client.zrangebyscore : client.zrevrangebyscore;
+        return f
+            .call(client, redisArgs)
             .then(results => {
                 const a = results.map(this.findOne, this);
-                return Promise.all(direction === 1 ? a : a.reverse());
+                return Promise.all(direction === 1 ? a : a.reverse()); // results should _always_ be chronologically ordered;
             })
-            .catch(cause => new Error(`couldn't find range of data for [${id}] by [${redisArgs[1]}/${redisArgs[2]}]`));
+            .catch(
+                cause =>
+                    new Error(
+                        `couldn't find range of data for [${id}] by [${
+                            redisArgs[1]
+                        }/${redisArgs[2]}]`
+                    )
+            );
     }
 }

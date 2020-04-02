@@ -2,7 +2,7 @@ import {
     MarketDataType,
     Resolution,
     Resolutions,
-    SecurityType
+    SecurityType,
 } from '../constants/Global.js';
 
 /// <summary>
@@ -122,7 +122,9 @@ export default class BaseData {
     /// <param name="volume">Volume of this trade</param>
     /// <param name="bidSize">The size of the current bid, if available</param>
     /// <param name="askSize">The size of the current ask, if available</param>
-    Update(lastTrade/*, decimal bidPrice, decimal askPrice, decimal volume, decimal bidSize, decimal askSize*/) {
+    Update(
+        lastTrade /*, decimal bidPrice, decimal askPrice, decimal volume, decimal bidSize, decimal askSize*/
+    ) {
         this.Value = lastTrade;
     }
 

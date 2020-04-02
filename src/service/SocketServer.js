@@ -1,6 +1,6 @@
 import logger from '../logs/log.js';
 import http from 'http';
-import {getRandInt, getRand} from '../utils/utils.js';
+import { getRandInt, getRand } from '../utils/utils.js';
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
 import zmq from 'zeromq';
@@ -11,7 +11,7 @@ import Mock from './MockData.js';
 //import http from 'http';
 //import SocketIO from 'socket.io';
 import joi from 'joi';
-import fs from "fs";
+import fs from 'fs';
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
 //path: '/chartsock',
@@ -65,7 +65,11 @@ class Sock {
         this.ioSock.on('connection', socket => {
             logger.info('  >>>>> a user connected!');
             socket.on('sub_chart', (algoId, lastDataTimestamp) => {
-                logger.info(`joining connection ${socket.id} to [${algoId}]; last data: ${lastDataTimestamp}`);
+                logger.info(
+                    `joining connection ${
+                        socket.id
+                    } to [${algoId}]; last data: ${lastDataTimestamp}`
+                );
                 // TODO: report err if algoId doesn't exist?
                 socket.join(algoId);
             });
@@ -112,17 +116,15 @@ const sendStaticPayload = ioSock => {
 
         const a = JSON.parse(data);
         //logger.error('yo:1' + JSON.stringify(a));
-        a.chart.chart.data = a.chart.chart.data.map(d => (
-            [
-                d[0] + timeRand,
-                //d[0],
-                d[1] - getRand(-0.00009, 0.0001),
-                d[2] - getRand(-0.00009, 0.0001),
-                d[3] - getRand(-0.00009, 0.0001),
-                d[4] - getRand(-0.00009, 0.0001),
-                0
-            ]
-        ));
+        a.chart.chart.data = a.chart.chart.data.map(d => [
+            d[0] + timeRand,
+            //d[0],
+            d[1] - getRand(-0.00009, 0.0001),
+            d[2] - getRand(-0.00009, 0.0001),
+            d[3] - getRand(-0.00009, 0.0001),
+            d[4] - getRand(-0.00009, 0.0001),
+            0,
+        ]);
 
         fs.writeFile('/tmp/bugreport.dat', JSON.stringify(a), 'utf8', () => {});
 

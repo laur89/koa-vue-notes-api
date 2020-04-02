@@ -55,7 +55,11 @@ export default class PeriodCountConsolidatorBase extends DataConsolidator {
         if (this.symbol === null) {
             this.symbol = data.Symbol;
         } else if (this.symbol !== data.Symbol) {
-            throw new InvalidOperationException(`Consolidators can only be used with a single symbol. The previous consolidated symbol (${this.symbol}) is not the same as in the current data (${data.Symbol}).`);
+            throw new InvalidOperationException(
+                `Consolidators can only be used with a single symbol. The previous consolidated symbol (${
+                    this.symbol
+                }) is not the same as in the current data (${data.Symbol}).`
+            );
         }
 
         if (!this.ShouldProcess(data)) {

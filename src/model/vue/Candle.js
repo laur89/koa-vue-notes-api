@@ -1,7 +1,7 @@
 // TODO: deleteme, superseded by repos
 import RedisModel from '../../io/redis.js';
-import data from "../../static-data/data";
-import client from "../../io/redisClientProvider";
+import data from '../../static-data/data';
+import client from '../../io/redisClientProvider';
 //import _ from 'lodash';
 
 const schema = {
@@ -9,7 +9,7 @@ const schema = {
     indexes: [
         {
             getName: () => 'timestamp',
-            shouldIndex: () => true,  // TODO: this is dumb right - why else have index conf listed under indexes if we don't want to use it?
+            shouldIndex: () => true, // TODO: this is dumb right - why else have index conf listed under indexes if we don't want to use it?
             addNonTenantIndex: () => true,
             getValue: data => data[0],
         },
@@ -18,7 +18,7 @@ const schema = {
     serialize(data) {
         return JSON.stringify(data);
     },
-    read(key, client){
+    read(key, client) {
         //const elements = client.lrange("supplier_id", 0, -1);
 
         client.get(key, (err, data) => {

@@ -30,7 +30,10 @@ export default class TradeBarConsolidator extends PeriodCountConsolidatorBase {
             workingBar.Close = data.Close;
             workingBar.Volume = data.Volume;
             workingBar.DataType = MarketDataType.TradeBar;
-            workingBar.Period = this.IsTimeBased() && this.Period !== null ? this.Period : data.Period;
+            workingBar.Period =
+                this.IsTimeBased() && this.Period !== null
+                    ? this.Period
+                    : data.Period;
         } else {
             //Aggregate the working bar
             workingBar.Close = data.Close;

@@ -5,7 +5,7 @@ const schema = {
     indexes: [
         {
             getName: () => 'timestamp',
-            shouldIndex: () => true,  // TODO: this is dumb right - why else have index conf listed under indexes if we don't want to use it?
+            shouldIndex: () => true, // TODO: this is dumb right - why else have index conf listed under indexes if we don't want to use it?
             addNonTenantIndex: () => true,
             getValue: data => data[0],
         },

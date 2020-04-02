@@ -22,9 +22,9 @@ class Chart {
                 .select('*')
                 //.where({ userId: request.userId })
                 //.where(
-            //    'title',
-            //      'like',
-            //      '%' + (request.sort ? request.sort : '') + '%'
+                //    'title',
+                //      'like',
+                //      '%' + (request.sort ? request.sort : '') + '%'
                 //  )
                 .orderBy('startedAt', request.order)
                 .offset(+request.page * +request.limit)

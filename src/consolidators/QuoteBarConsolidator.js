@@ -1,7 +1,7 @@
 // based on LEAN's Common/Data/Consolidators/QuoteBarConsolidator.cs
 import PeriodCountConsolidatorBase from './PeriodCountConsolidatorBase.js';
 import QuoteBar from '../model/QuoteBar.js';
-import Bar from "../model/Bar";
+import Bar from '../model/Bar.js';
 
 /// <summary>
 /// Consolidates QuoteBars into larger QuoteBars
@@ -28,9 +28,10 @@ export default class QuoteBarConsolidator extends PeriodCountConsolidatorBase {
             workingBar.Time = this.GetRoundedBarTime(data.Time);
             workingBar.Bid = bid === null ? null : bid.Clone();
             workingBar.Ask = ask === null ? null : ask.Clone();
-            workingBar.Period = this.IsTimeBased() && this.Period !== null
-                ? this.Period
-                : data.Period;
+            workingBar.Period =
+                this.IsTimeBased() && this.Period !== null
+                    ? this.Period
+                    : data.Period;
         }
 
         // update the bid and ask

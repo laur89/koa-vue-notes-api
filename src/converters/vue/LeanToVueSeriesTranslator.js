@@ -21,7 +21,9 @@ export default function t(leanChartTypeOrIndicator) {
         case 7:
             return 'Treemap';
         default:
-            throw new Error(`unsupported LEAN SeriesType ${leanChartTypeOrIndicator}`);
+            throw new Error(
+                `unsupported LEAN SeriesType ${leanChartTypeOrIndicator}`
+            );
     }
 
     // Channel (KC,BB), Range (RSI), Trades, Splines (DMI),  Spline (EMA,SMA), Segment, Candles, Volume, Splitters, LineTool, RangeTool,

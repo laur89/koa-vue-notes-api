@@ -100,7 +100,7 @@ const SeriesType = {
     /// Pie chart
     Pie: 'Pie',
     /// Treemap Plot
-    Treemap: 'Treemap'
+    Treemap: 'Treemap',
 };
 
 export { MarketDataType, Resolution, Resolutions, SecurityType, SeriesType };

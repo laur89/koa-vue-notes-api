@@ -40,5 +40,5 @@ export default class IDate extends Date {
         }
 
         return this;
-    };
+    }
 }

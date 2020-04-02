@@ -1,7 +1,7 @@
 import logger from '../logs/log.js';
 import sTypeTrans from '../converters/vue/SeriestypeTranslator.js';
 //import chartConverter from '../converters/vue/ChartConverter.js'
-import {getRandInt, getRand} from '../utils/utils.js';
+import { getRandInt, getRand } from '../utils/utils.js';
 
 import { Chart } from '../models/Chart.js';
 import { User } from '../models/User.js';
@@ -14,7 +14,7 @@ import val from './DataValidator.js';
 import db from '../db/db.js';
 
 import joi from 'joi';
-import redis from "../io/redisClientProvider.js";
+import redis from '../io/redisClientProvider.js';
 //import {SeriesType} from "../constants/Global";
 //let io = ioClient('http://your-host')
 //const io = ioClient(process.env.SOCK_PORT, {
@@ -100,13 +100,14 @@ const charts = new Map();
 const vueCharts = new Map();
 const algoIdsStoredInDB = new Set();
 
-const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to parametirze vue chart types
-    chartName: 'Our chart name from API',  // TODO: need to get the name dynamically
+const createChartScaffold = (mainChartType = 'Candles') => ({
+    // TODO: need to parametirze vue chart types
+    chartName: 'Our chart name from API', // TODO: need to get the name dynamically
     chart: {
         chart: {
             type: mainChartType,
             data: [],
-            settings: {}
+            settings: {},
         },
         //onchart: [],
         //offchart: [{
@@ -114,10 +115,10 @@ const createChartScaffold = (mainChartType = 'Candles') => ({  // TODO: need to 
         //type: 'Candles',
         //    data: []
         //}]
-    }
+    },
 });
 
-const chartController = new ChartController();  // TODO: cc should be singleton
+const chartController = new ChartController(); // TODO: cc should be singleton
 class Consumer {
     constructor(ioSock, processor) {
         this.ioSock = ioSock;
@@ -130,15 +131,13 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        const algoId = 'TODO hard-coded backtest ID44';  // TODO, extract from LEAN msg eventually
+        const algoId = 'TODO hard-coded backtest ID50'; // TODO, extract from LEAN msg eventually
 
         let vueChart = vueCharts.get(algoId);
         if (vueChart === undefined) {
             vueChart = createChartScaffold();
-            vueCharts.set(algoId, vueChart)
+            vueCharts.set(algoId, vueChart);
         }
-
-
 
         let i, t;
         for await (const [msg] of sock) {
@@ -149,27 +148,30 @@ class Consumer {
             t = i['eType'];
             msgTypes.set(t, msgTypes.has(t) ? msgTypes.get(t) + 1 : 1);
 
-
             if (!algoIdsStoredInDB.has(algoId)) {
-                await chartController.create({  // TODO: no point to await right? if not, then we'd just hope it gets stored
+                await chartController.create({
+                    // TODO: no point to await right? if not, then we'd just hope it gets stored
                     id: algoId,
-                    type: 'backtest',  // TODO, how to identify?
+                    type: 'backtest', // TODO, how to identify?
                     running: true,
-                    startedAt: new Date(),   // TODO: get time from LEAN
+                    startedAt: new Date(), // TODO: get time from LEAN
                     //endedAt: null
                 });
 
                 algoIdsStoredInDB.add(algoId);
             }
 
-
             if (ignoredTypes.includes(t)) {
                 continue;
             } else if (i['dProgress'] === 1) {
                 // we've reached end
-                const d = i.oResults.Charts['Asset Price']['Series']['EURUSD[O,1min]'].Values;
+                const d =
+                    i.oResults.Charts['Asset Price']['Series']['EURUSD[O,1min]']
+                        .Values;
                 logger.error(`final monster-msg values size: ${d.length}`);
-                logger.error(`monster rannge: ${d[0].x} - ${d[d.length-1].x}`);
+                logger.error(
+                    `monster rannge: ${d[0].x} - ${d[d.length - 1].x}`
+                );
                 val.printRange(algoId);
             } else if (i.hasOwnProperty('oResults')) {
                 hasores.set(t, hasores.has(t) ? hasores.get(t) + 1 : 1);
@@ -185,12 +187,12 @@ class Consumer {
                 let charts_ = i.oResults.Charts;
                 for (const chartName in charts_) {
                     chartName &&
-                    charts.set(
-                        chartName,
-                        charts.has(chartName)
-                            ? charts.get(chartName) + 1
-                            : 1
-                    );
+                        charts.set(
+                            chartName,
+                            charts.has(chartName)
+                                ? charts.get(chartName) + 1
+                                : 1
+                        );
                     //logger.error(`chart ${chartName} seriestype: ${sTypeTrans(1)}`)
                     let c = charts_[chartName];
                     let series = c['Series'];
@@ -223,7 +225,7 @@ class Consumer {
                 charts.clear();
 
                 algoIdsStoredInDB.delete(algoId);
-                setAlgoFinished(algoId)
+                setAlgoFinished(algoId);
 
                 val.reset(algoId);
             }
@@ -244,26 +246,30 @@ const setAlgoFinished = async algoId => {
         result = JSON.parse(result);
         // TODO: prolly have to parse result first?
         result.running = false;
-        redis.set(algoId, JSON.stringify(result));  // TODO log out write errors!
+        redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
     });
 
     // db:
     const chart = new Chart();
     await chart.find(algoId);
-    chart.running = false
-    chart.endedAt = new Date()  // TODO: get algo endDate from LEAN response
+    chart.running = false;
+    chart.endedAt = new Date(); // TODO: get algo endDate from LEAN response
 
     try {
         await chart.save();
     } catch (error) {
         console.log(error);
     }
-}
-
+};
 
 const persistFinalState = state => {
     const timeRand = Math.floor(getRandInt(1000000, 9000000) * 60000);
-    fs.writeFile('/tmp/processed-lean.dat', JSON.stringify(state), 'utf8', () => {});
+    fs.writeFile(
+        '/tmp/processed-lean.dat',
+        JSON.stringify(state),
+        'utf8',
+        () => {}
+    );
     return;
 
     fs.readFile('/tmp/out.json', 'utf8', (err, data) => {
@@ -272,17 +278,15 @@ const persistFinalState = state => {
 
         const a = JSON.parse(data);
         //logger.error('yo:1' + JSON.stringify(a));
-        a.chart.chart.data = a.chart.chart.data.map(d => (
-            [
-                d[0] + timeRand,
-                //d[0],
-                d[1] - getRand(-0.00009, 0.0001),
-                d[2] - getRand(-0.00009, 0.0001),
-                d[3] - getRand(-0.00009, 0.0001),
-                d[4] - getRand(-0.00009, 0.0001),
-                0
-            ]
-        ));
+        a.chart.chart.data = a.chart.chart.data.map(d => [
+            d[0] + timeRand,
+            //d[0],
+            d[1] - getRand(-0.00009, 0.0001),
+            d[2] - getRand(-0.00009, 0.0001),
+            d[3] - getRand(-0.00009, 0.0001),
+            d[4] - getRand(-0.00009, 0.0001),
+            0,
+        ]);
 
         fs.writeFile('/tmp/bugreport.dat', JSON.stringify(a), 'utf8', () => {});
 

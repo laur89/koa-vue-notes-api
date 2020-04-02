@@ -2,16 +2,13 @@ import BaseData from './BaseData.js';
 import TradeBar from './TradeBar.js';
 import Bar from './Bar.js';
 import IDate from '../utils/IDate.js';
-import {
-    MarketDataType,
-} from '../constants/Global.js';
+import { MarketDataType } from '../constants/Global.js';
 
 /// <summary>
 /// QuoteBar class for second and minute resolution data:
 /// An OHLC implementation of the QuantConnect BaseData class with parameters for candles.
 /// </summary>
 export default class QuoteBar extends BaseData {
-
     /// <summary>
     /// Default initializer to setup an empty quotebar.
     /// </summary>
@@ -176,7 +173,7 @@ export default class QuoteBar extends BaseData {
         if (lastTrade !== 0) this.Value = lastTrade;
         else if (askPrice !== 0) this.Value = askPrice;
         else if (bidPrice !== 0) this.Value = bidPrice;
-}
+    }
 
     /// <summary>
     /// Return a new instance clone of this quote bar, used in fill forward
@@ -213,7 +210,7 @@ export default class QuoteBar extends BaseData {
         tb.High = this.High;
         tb.Low = this.Low;
         tb.Close = this.Close;
-        tb.Volume = 0;  // should be set anyway at the constructor?
+        tb.Volume = 0; // should be set anyway at the constructor?
         tb.Period = this.Period;
 
         return tb;

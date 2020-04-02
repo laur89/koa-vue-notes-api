@@ -43,7 +43,9 @@ export default class RedisModel {
     }
 
     _unpackHashValues(data) {
-        const { schema: { attributes } } = this.props;
+        const {
+            schema: { attributes },
+        } = this.props;
         const obj = {};
 
         _.each(data, (value, key) => {
@@ -63,7 +65,7 @@ export default class RedisModel {
             const secondsPerDay = 86400;
             const args = [
                 this._buildIndexName(this.schema, indexName),
-                (now + (expSeconds() - secondsPerDay) * 1000),
+                now + (expSeconds() - secondsPerDay) * 1000,
                 '-inf',
             ];
 
@@ -76,16 +78,25 @@ export default class RedisModel {
     }
 
     _getIndexedIds(indexName, offset, limit) {
-        return this._clearOldIndexes(indexName)
-            .then(() => new Promise((resolve, reject) => {
-                const args = [indexName, '+inf', '-inf', 'LIMIT', offset || 0, limit || 20];
+        return this._clearOldIndexes(indexName).then(
+            () =>
+                new Promise((resolve, reject) => {
+                    const args = [
+                        indexName,
+                        '+inf',
+                        '-inf',
+                        'LIMIT',
+                        offset || 0,
+                        limit || 20,
+                    ];
 
-                client.zrevrangebyscore(args, (err, results) => {
-                    if (err) return reject(err);
+                    client.zrevrangebyscore(args, (err, results) => {
+                        if (err) return reject(err);
 
-                    return resolve(results);
-                });
-            }));
+                        return resolve(results);
+                    });
+                })
+        );
     }
 
     create(chartId, seriesId, data) {
@@ -121,7 +132,13 @@ export default class RedisModel {
             if (this.schema.hasOwnProperty('indexes')) {
                 _.each(this.schema.indexes, indexConf => {
                     if (indexConf.shouldIndex(data)) {
-                        multi.zadd(this._buildIndexName(`${id}_${indexConf.getName(data)}`), indexConf.getValue(data), redisKey);
+                        multi.zadd(
+                            this._buildIndexName(
+                                `${id}_${indexConf.getName(data)}`
+                            ),
+                            indexConf.getValue(data),
+                            redisKey
+                        );
                     }
                 });
             }
@@ -141,7 +158,7 @@ export default class RedisModel {
             // Handle the hash values
             const hashValues = this._buildObjectHashValues(data);
             if (hashValues) {
-                client.hmset(redisKey, hashValues, (err) => {
+                client.hmset(redisKey, hashValues, err => {
                     if (err) return reject(err);
 
                     return resolve();
@@ -166,7 +183,8 @@ export default class RedisModel {
     }
 
     fromIndex(indexName) {
-        return this._getIndexedIds(indexName, undefined, 250)
-            .then(results => Promise.all(results.map(result => this.findOne(result))));
+        return this._getIndexedIds(indexName, undefined, 250).then(results =>
+            Promise.all(results.map(result => this.findOne(result)))
+        );
     }
 }

@@ -24,7 +24,8 @@ export default class Bar {
         // Do not accept zero as a new value
         if (value === 0) return;
 
-        if (this.Open === 0) this.Open = this.High = this.Low = this.Close = value;
+        if (this.Open === 0)
+            this.Open = this.High = this.Low = this.Close = value;
         if (value > this.High) this.High = value;
         if (value < this.Low) this.Low = value;
         this.Close = value;

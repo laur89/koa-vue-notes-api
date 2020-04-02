@@ -19,7 +19,7 @@ export default class TradeBar extends BaseData {
     }
 
     setMembers() {
-        this._initialized = 0;  // bool: 0-false 1-true; note bool type is not used as C# Interlocked.CompareExchange does not support types less than 32bits
+        this._initialized = 0; // bool: 0-false 1-true; note bool type is not used as C# Interlocked.CompareExchange does not support types less than 32bits
         this._open = 0.0;
         this._high = 0.0;
         this._low = 0.0;
@@ -113,7 +113,7 @@ export default class TradeBar extends BaseData {
         tb.Period = this.Period;
         tb.Value = this.Value;
         tb.DataType = this.DataType;
-        tb._isFillFwd = this._isFillFwd;  // private in BaseData
+        tb._isFillFwd = this._isFillFwd; // private in BaseData
 
         tb._initialized = this._initialized;
         tb._open = this._open;
