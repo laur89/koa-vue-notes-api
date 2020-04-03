@@ -19,6 +19,7 @@ import {
 } from './LeanDataProcessorConf.js';
 
 const volatileRuntimeChartConfigs = new Map(); // only used in-memory while chart/algo is still live; not to be persisted;
+const chartSeriesWrittenToRedis = new Set();  // optimization to avoid unnecessary calls to redis; TODO: needs cleanup when feed has ended
 
 const equitySymbol = 'Equity';
 const toEquityBaseData = toBaseData.bind(null, equitySymbol);
@@ -74,7 +75,7 @@ export default class Processor {
 
     // TODO: is there even point in returning bars from per-chart processors/converters to this function?
     // guess some benefit might be in invoking consolidator.Update from a singular place;
-    processLeanChart(c, algoId) {
+    async processLeanChart(c, algoId) {
         if (ignoredCharts.includes(c.Name)) return;
 
         let chartConfId, chartConf, chartMissing, data;
@@ -84,7 +85,7 @@ export default class Processor {
             chartMissing = chartConf === undefined;
         };
 
-        const postProcessCommon = (toTvData, onOrOffChart) => {
+        const postProcessCommon = async (toTvData, onOrOffChart) => {
             if (chartMissing) {
                 // store chartConf in-mem if it was defined for the first time:
                 volatileRuntimeChartConfigs.set(chartConfId, chartConf);
@@ -113,50 +114,57 @@ export default class Processor {
             // TODO: perhaps more efficient to check if key that stars w/ 'algoId:chart:' exists? that'd mean that chart,on-offChart are stored under separate keys tho...
             // then again, we'd only win on read, as we expect it all to be there...
             // TODO2: put this guy also into node-cache for even faster access?
-            redis.get(algoId).then(result => {
-                // no need to block right?
-                let shouldWrite = false;
-                const cnf = {
-                    readRepo: 'vueCandle', // so we know which repo implementation to read the data with
-                    conf: chartConf.conf,
-                    id: chartConfId, // for accessing persisted candle data later on;
-                };
+            if (!chartSeriesWrittenToRedis.has(chartConfId)) {
 
-                if (!result) {  // null if not found
-                    result = onOrOffChart
-                        ? {
-                              running: true,
-                              chart: null, // have to indicate main chart has not been initialized yet
-                              onchart: [],
-                              offchart: [],
-                          }
-                        : {
-                              running: true,
-                              chart: cnf,
-                              onchart: [],
-                              offchart: [],
-                          };
-                    onOrOffChart && result[onOrOffChart].push(cnf);
-                    shouldWrite = true;
-                } else {  // conf exists, update the relevant bit(s):
-                    result = JSON.parse(result);
-                    if (onOrOffChart) {
-                        if (
-                            result[onOrOffChart].find(
-                                oc => oc.id === chartConfId
-                            ) === undefined
-                        ) {
-                            result[onOrOffChart].push(cnf);
+                await redis.get(algoId).then(result => {
+                    let shouldWrite = false;
+                    const cnf = {
+                        readRepo: 'vueCandle', // so we know which repo implementation to read the data with
+                        conf: chartConf.conf,
+                        id: chartConfId, // for accessing persisted candle data later on;
+                    };
+
+                    if (!result) {  // null if not found
+                        result = onOrOffChart
+                            ? {
+                                  running: true,
+                                  chart: null, // have to indicate main chart has not been initialized yet
+                                  onchart: [],
+                                  offchart: [],
+                              }
+                            : {
+                                  running: true,
+                                  chart: cnf,
+                                  onchart: [],
+                                  offchart: [],
+                              };
+                        onOrOffChart && result[onOrOffChart].push(cnf);
+                        shouldWrite = true;
+                    } else {  // conf exists, update the relevant bit(s):
+                        result = JSON.parse(result);
+                        if (onOrOffChart) {
+                            if (
+                                result[onOrOffChart].find(
+                                    oc => oc.id === chartConfId
+                                ) === undefined
+                            ) {
+                                result[onOrOffChart].push(cnf);
+                                shouldWrite = true;
+                            }
+                        } else if (result.chart === null) {  // main chart
+                            result.chart = cnf;
                             shouldWrite = true;
                         }
-                    } else if (result.chart === null) {  // main chart
-                        result.chart = cnf;
-                        shouldWrite = true;
                     }
-                }
 
-                shouldWrite && redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
-            });
+                    if (shouldWrite) return redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
+                }).then(r => {
+                    if (r !== undefined) {
+                        // eg when we got back 'OK', ie redis was called at all
+                        chartSeriesWrittenToRedis.add(chartConfId);
+                    }
+                });
+            }
 
             //redis.set(`${algoId}_chart_conf`, JSON.stringify(chartConf.conf));  // think all chart conf is ok to store under <algoId> key
 
@@ -169,7 +177,7 @@ export default class Processor {
                 chartConfId = `${algoId}:chart:${c.Name}`;
                 fetchChartConf();
                 [data, chartConf] = assetPriceProcessor(c, chartConf);
-                postProcessCommon(tradeBarToVueCandleBar, false);
+                await postProcessCommon(tradeBarToVueCandleBar, false);
 
                 chartConf.consolidators.forEach(consolidator => {
                     data.forEach(consolidator.Update, consolidator); // TODO: can be made common?
@@ -186,7 +194,7 @@ export default class Processor {
                         c.Series[sKey],
                         chartConf
                     );
-                    postProcessCommon(baseDataToVueDataPoint, onOffChart);
+                    await postProcessCommon(baseDataToVueDataPoint, onOffChart);
 
                     chartConf.consolidators.forEach(consolidator => {
                         data.forEach(consolidator.Update, consolidator); // TODO: can be made common?
@@ -203,7 +211,7 @@ export default class Processor {
                 }`; // TODO: need to append _a_ series name to the chartCOnf if?
                 fetchChartConf();
                 [data, chartConf] = channelTypeProcessor(c, chartConf);
-                postProcessCommon(channelBaseDataToVueDataPoint, onOffChart);
+                await postProcessCommon(channelBaseDataToVueDataPoint, onOffChart);
 
                 chartConf.consolidators.forEach(consolidator => {
                     data.forEach(consolidator.Update, consolidator); // TODO: can be made common?
