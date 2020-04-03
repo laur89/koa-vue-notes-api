@@ -117,7 +117,6 @@ export default class Processor {
             if (!chartSeriesWrittenToRedis.has(chartConfId)) {
 
                 await redis.get(algoId).then(result => {
-                    let shouldWrite = false;
                     const cnf = {
                         readRepo: 'vueCandle', // so we know which repo implementation to read the data with
                         conf: chartConf.conf,
@@ -139,7 +138,6 @@ export default class Processor {
                                   offchart: [],
                               };
                         onOrOffChart && result[onOrOffChart].push(cnf);
-                        shouldWrite = true;
                     } else {  // conf exists, update the relevant bit(s):
                         result = JSON.parse(result);
                         if (onOrOffChart) {
@@ -149,20 +147,15 @@ export default class Processor {
                                 ) === undefined
                             ) {
                                 result[onOrOffChart].push(cnf);
-                                shouldWrite = true;
                             }
                         } else if (result.chart === null) {  // main chart
                             result.chart = cnf;
-                            shouldWrite = true;
                         }
                     }
 
-                    if (shouldWrite) return redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
-                }).then(r => {
-                    if (r !== undefined) {
-                        // eg when we got back 'OK', ie redis was called at all
-                        chartSeriesWrittenToRedis.add(chartConfId);
-                    }
+                    return redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
+                }).then(() => {
+                    chartSeriesWrittenToRedis.add(chartConfId);
                 });
             }
 
@@ -221,7 +214,7 @@ export default class Processor {
                 break;
             case 'Strategy Equity':
                 return; // TODO: move this block to plc()
-                
+
                 [data, chartConf] = processStratEquity(c, chartConf);
                 //getCommonConsolidators(periodMs, TradeBarConsolidator, () => {})
                 //vueChart.chart.offchart[0].data.push(...bars);

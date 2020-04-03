@@ -131,7 +131,7 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        const algoId = 'TODO hard-coded backtest ID66'; // TODO, extract from LEAN msg eventually
+        const algoId = 'TODO hard-coded backtest ID69'; // TODO, extract from LEAN msg eventually
 
         let vueChart = vueCharts.get(algoId);
         if (vueChart === undefined) {
