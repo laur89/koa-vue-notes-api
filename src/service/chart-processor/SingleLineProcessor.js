@@ -6,21 +6,50 @@ import {
     timeframeToPeriod,
 } from '../LeanDataProcessorConf.js';
 
-// TODO: move all regexes (regecies?) to config
 const RSIRgx = /^RSI\((?<period>\d+),(?<movingAvgType>\w+),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)$/; // eg "RSI(14,Wilders,EURUSD_hr)"
+const ATRRgx = /^ATR\((?<period>\d+),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)$/; // eg "ATR(14,EURUSD_min)"
+
+const getRgx = name => {
+    if (name.startsWith('RSI')) {
+        return RSIRgx;
+    } else if (name.startsWith('ATR')) {
+        return ATRRgx;
+    } else {
+        throw new Error(
+            `Unexpected LineIndicators series name: [${name}]`);
+    }
+};
+
+const getDefaultSettings = name => {
+    if (name.startsWith('RSI')) {
+        return {
+            upper: 70,
+            lower: 30,
+            backColor: '#9b9ba316',
+            bandColor: '#666',
+        };
+    }
+
+    return {};
+};
+
+const getType = name => {
+    if (name.startsWith('RSI')) return 'Range';
+
+    return 'Spline';
+};
 
 const convertSingleLineIndicatorToSpline = (series, chartConf) => {
     let symbol, timeframe, periodMs, name;
 
     if (chartConf === undefined) {
-        const match = RSIRgx.exec(series.Name);
+        const match = getRgx(series.Name).exec(series.Name);
         if (match === null)
             throw new Error(
-                `Unexpected Indicators series name: [${series.Name}]`
+                `Unexpected LineIndicators series name: [${series.Name}]`
             ); // sanity check
         name = match.input;
-        //symbol = match.groups.symbol;  TODO make it dynamic
-        symbol = 'RSI';
+        symbol = match.groups.symbol;
         timeframe = match.groups.timeframe;
         periodMs = timeframeToPeriod(timeframe);
     } else {
@@ -38,22 +67,16 @@ const convertSingleLineIndicatorToSpline = (series, chartConf) => {
             {
                 //
                 conf: {
-                    //type: sTypeTrans(series[seriesName].SeriesType),
-                    type: 'RSI',
+                    type: getType(series.Name),
                     name,
-                    settings: {
-                        upper: 70,
-                        lower: 30,
-                        backColor: '#9b9ba316',
-                        bandColor: '#666',
-                    },
+                    settings: getDefaultSettings(series.Name),
                     // TODO: we should also store series index somewhere
                 },
                 timeframe: {
                     symbol: timeframe,
                     periodMs: periodMs,
                 },
-                symbol: symbol,
+                symbol,
                 //seriesName: seriesName,  // TODO: need this?
                 //isInRedis: false,   // marks if root element ('chart') for this algo has been stored in redis & is discoverable
                 //bars: bars,

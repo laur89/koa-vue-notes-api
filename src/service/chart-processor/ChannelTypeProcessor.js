@@ -7,7 +7,7 @@ import {
     timeframeToPeriod,
 } from '../LeanDataProcessorConf.js';
 
-// TODO: move all regexes (regecies?) to config
+// TODO: add KC logic
 const BBRgx = /^BB\((?<period>\d+),(?<noStdDeviations>\d+(\.\d+)?),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)_(?<band>\w+)$/; // eg "BB(20,2.2,EURUSD_day)_MiddleBand"
 const BBNameRgx = /^BB\(\S+\)/; // eg extract "BB(20,2.2,EURUSD_day)" out of "BB(20,2.2,EURUSD_day)_MiddleBand"
 //BB(20,2,EURUSD_min)

@@ -178,7 +178,7 @@ export default class Processor {
                     //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
                 });
                 break;
-            case 'Indicators': // TODO: should we already vet here whether we have logic to process given indicator, not check downstream?
+            case 'LineIndicators': // TODO: should we already vet here whether we have logic to process given indicator, not check downstream?
                 for (const sKey in c.Series) {
                     const onOffChart = 'offchart'; // TODO: always offchart? sounds like bold assumption;
                     chartConfId = `${algoId}:${onOffChart}:${c.Name}:${sKey}`;
@@ -197,7 +197,8 @@ export default class Processor {
                 }
 
                 break;
-            case 'BB': // special case, can't solve universally under 'Indicators'
+            case 'BB': // special cases, can't solve universally under 'Indicators'
+            case 'KC':
                 const onOffChart = 'onchart';
                 chartConfId = `${algoId}:${onOffChart}:${c.Name}:${
                     Object.keys(c.Series)[0]

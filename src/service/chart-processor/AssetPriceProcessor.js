@@ -73,8 +73,8 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
                 //
                 conf: {
                     type: 'Candles',
-                    name: 'TODO AP name',
-                    chartName: 'Our chart name from api',
+                    name: `${symbol}(${timeframe})`,
+                    //chartName: 'algo name or ID from api',
                     //data: [],
                     settings: {},
                     // TODO: we should also store series index somewhere
@@ -89,7 +89,7 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
                 consolidators: getCommonConsolidators(
                     periodMs,
                     TradeBarConsolidator,
-                    () => {}
+                    () => {}  // TODO: here we need to push the data to redis? and maybe over sockets?
                 ),
                 consolidatorConstructor: TradeBarConsolidator,
             },

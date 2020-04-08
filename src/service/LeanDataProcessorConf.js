@@ -85,7 +85,7 @@ const getCommonConsolidators = (
     onConsolidated
 ) =>
     [3, 5, 30, 60] // minutes
-        .map(p => p * 60 * 1000)
+        .map(p => p * 60 * 1000)  // to millis
         .filter(p => p > periodMs)
         .map(p => {
             const c = new consolidatorConstructor(p);

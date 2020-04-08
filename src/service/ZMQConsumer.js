@@ -102,7 +102,6 @@ const algoIdsStoredInDB = new Set();
 
 const createChartScaffold = (mainChartType = 'Candles') => ({
     // TODO: need to parametirze vue chart types
-    chartName: 'Our chart name from API', // TODO: need to get the name dynamically
     chart: {
         chart: {
             type: mainChartType,
@@ -131,7 +130,7 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        const algoId = 'TODO hard-coded backtest ID69'; // TODO, extract from LEAN msg eventually
+        const algoId = 'TODO hard-coded backtest ID72'; // TODO, extract from LEAN msg eventually
 
         let vueChart = vueCharts.get(algoId);
         if (vueChart === undefined) {
