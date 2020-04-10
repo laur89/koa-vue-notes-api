@@ -1,11 +1,30 @@
 import jsonwebtoken from 'jsonwebtoken';
 
 export default (opts = {}) => {
-    const secret = opts.secret;
 
-    const middleware = async function jwt(ctx, next) {
-        //If there's no secret set, toss it out right away
-        if (!secret) ctx.throw(401, 'INVALID_SECRET');
+    function getJwtToken(ctx) {
+        if (ctx.header === null || typeof ctx.header !== 'object' || !ctx.header.authorization) {
+            return;
+        }
+
+        const parts = ctx.header.authorization.split(' ');
+
+        if (parts.length === 2) {
+            const scheme = parts[0];
+            const credentials = parts[1];
+
+            if (/^Bearer$/i.test(scheme)) {
+                return credentials;
+            }
+        }
+
+        return ctx.throw(401, 'AUTHENTICATION_ERROR');
+    }
+
+    // return the middleware function:
+    return async (ctx, next) => {
+        //If there's no secret set, bail out right away
+        if (!opts.secret) ctx.throw(401, 'INVALID_SECRET');
 
         //Grab the token
         const token = getJwtToken(ctx);
@@ -14,7 +33,7 @@ export default (opts = {}) => {
             //Try and decode the token asynchronously
             const decoded = await jsonwebtoken.verify(
                 token,
-                process.env.JWT_SECRET
+                opts.secret,
             );
 
             //If it worked set the ctx.state.user parameter to the decoded token.
@@ -30,24 +49,4 @@ export default (opts = {}) => {
 
         return next();
     };
-
-    function getJwtToken(ctx) {
-        if (!ctx.header || !ctx.header.authorization) {
-            return;
-        }
-
-        const parts = ctx.header.authorization.split(' ');
-
-        if (parts.length === 2) {
-            const scheme = parts[0];
-            const credentials = parts[1];
-
-            if (/^Bearer$/i.test(scheme)) {
-                return credentials;
-            }
-        }
-        return ctx.throw(401, 'AUTHENTICATION_ERROR');
-    }
-
-    return middleware;
 };

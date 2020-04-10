@@ -67,7 +67,7 @@ class UserController {
         }
 
         //Now let's check for a duplicate username
-        var [result] = await db('users')
+        let [result] = await db('users')
             .where({
                 username: request.username,
             })
@@ -77,7 +77,7 @@ class UserController {
         }
 
         //..and duplicate email
-        var [result] = await db('users')
+        [result] = await db('users')
             .where({
                 email: request.email,
             })
@@ -102,7 +102,7 @@ class UserController {
 
         //Ok, at this point we can sign them up.
         try {
-            var [result] = await db('users')
+            [result] = await db('users')
                 .insert(request)
                 .returning('id');
 
@@ -138,38 +138,41 @@ class UserController {
         const request = ctx.request.body;
 
         if (!request.username || !request.password) {
-            ctx.throw(404, 'INVALID_DATA');
+            ctx.throw(400, 'INVALID_DATA');
         }
 
         //Let's find that user
-        var [userData] = await db('users')
+        const [userData] = await db('users')
             .where({
                 username: request.username,
             })
             .select('id', 'token', 'username', 'email', 'password', 'isAdmin');
+
         if (!userData) {
             ctx.throw(401, 'INVALID_CREDENTIALS');
         }
 
         //Now let's check the password
+        let correctUserAuth;
         try {
-            let correct = await bcrypt.compare(
+            correctUserAuth = await bcrypt.compare(
                 request.password,
-                userData.password
+                userData.password,
             );
-            if (!correct) {
-                ctx.throw(400, 'INVALID_CREDENTIALS');
-            }
         } catch (error) {
-            console.log('here', error);
-            ctx.throw(400, 'INVALID_DATA');
+            //console.log('here', error);
+            ctx.throw(500, 'INTERNAL_ERR_AUTH');
+        }
+
+        if (!correctUserAuth) {
+            ctx.throw(401, 'INVALID_CREDENTIALS');
         }
 
         //Let's get rid of that password now for security reasons
         delete userData.password;
 
         //Generate the refreshToken data
-        let refreshTokenData = {
+        const refreshTokenData = {
             username: userData.username,
             refreshToken: new rand(/[a-zA-Z0-9_-]{64,64}/).gen(),
             info:
@@ -187,7 +190,7 @@ class UserController {
         try {
             await db('refresh_tokens').insert(refreshTokenData);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
 
         //Update their login count
@@ -196,7 +199,7 @@ class UserController {
                 .increment('loginCount')
                 .where({ id: userData.id });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
 
         //Ok, they've made it, send them their jsonwebtoken with their data, accessToken and refreshToken
@@ -205,6 +208,7 @@ class UserController {
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME }
         );
+
         ctx.body = {
             accessToken: token,
             refreshToken: refreshTokenData.refreshToken,
@@ -214,7 +218,7 @@ class UserController {
     async refreshAccessToken(ctx) {
         const request = ctx.request.body;
         if (!request.username || !request.refreshToken) {
-            ctx.throw(401, 'NO_REFRESH_TOKEN');
+            ctx.throw(400, 'NO_REFRESH_TOKEN');
         }
 
         //Let's find that user and refreshToken in the refreshToken table
@@ -225,8 +229,9 @@ class UserController {
                 refreshToken: request.refreshToken,
                 isValid: true,
             });
+
         if (!refreshTokenDatabaseData) {
-            ctx.throw(400, 'INVALID_REFRESH_TOKEN');
+            ctx.throw(400, 'INVALID_REFRESH_TOKEN');  // TODO: is 400 here ok? sounds more like 401, as obviously wrong data was provided w/ request
         }
 
         //Let's make sure the refreshToken is not expired
@@ -234,11 +239,13 @@ class UserController {
             new Date(),
             refreshTokenDatabaseData.expiration
         );
+
         if (refreshTokenIsValid !== -1) {
-            ctx.throw(400, 'REFRESH_TOKEN_EXPIRED');
+            ctx.throw(401, 'REFRESH_TOKEN_EXPIRED');
         }
 
-        //Ok, everthing checked out. So let's invalidate the refresh token they just confirmed, and get them hooked up with a new one.
+        // Ok, everything checked out. So let's invalidate the refresh token
+        // they just confirmed, and get them hooked up with a new one.
         try {
             await db('refresh_tokens')
                 .update({
@@ -247,18 +254,19 @@ class UserController {
                 })
                 .where({ refreshToken: refreshTokenDatabaseData.refreshToken });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA1');
+            ctx.throw(500, 'INVALID_DATA1');
         }
 
         const [userData] = await db('users')
             .select('id', 'token', 'username', 'email', 'isAdmin')
             .where({ username: request.username });
+
         if (!userData) {
-            ctx.throw(401, 'INVALID_REFRESH_TOKEN');
+            ctx.throw(500, 'INVALID_USERNAME');  // TODO: right, as we got no result from db? username existence was vetted above, so can't be 401
         }
 
         //Generate the refreshToken data
-        let refreshTokenData = {
+        const refreshTokenData = {
             username: request.username,
             refreshToken: new rand(/[a-zA-Z0-9_-]{64,64}/).gen(),
             info:
@@ -276,15 +284,16 @@ class UserController {
         try {
             await db('refresh_tokens').insert(refreshTokenData);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
 
-        //Ok, they've made it, send them their jsonwebtoken with their data, accessToken and refreshToken
+        //Ok, they've made it, send them their jsonwebtoken with their data, accessToken and refreshToken:
         const token = jsonwebtoken.sign(
             { data: userData },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME }
         );
+
         ctx.body = {
             accessToken: token,
             refreshToken: refreshTokenData.refreshToken,
@@ -300,17 +309,19 @@ class UserController {
                     updatedAt: d.format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
                 })
                 .where({ username: request.username });
+
             ctx.body = { message: 'SUCCESS' };
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
     }
 
     async invalidateRefreshToken(ctx) {
         const request = ctx.request.body;
         if (!request.refreshToken) {
-            ctx.throw(404, 'INVALID_DATA');
+            ctx.throw(400, 'INVALID_DATA');
         }
+
         try {
             await db('refresh_tokens')
                 .update({
@@ -321,9 +332,10 @@ class UserController {
                     username: ctx.state.user.username,
                     refreshToken: request.refreshToken,
                 });
+
             ctx.body = { message: 'SUCCESS' };
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
     }
 
@@ -331,30 +343,31 @@ class UserController {
         const request = ctx.request.body;
 
         if (!request.email || !request.url || !request.type) {
-            ctx.throw(404, 'INVALID_DATA');
+            ctx.throw(400, 'INVALID_DATA');
         }
 
-        let resetData = {
+        const resetData = {
             passwordResetToken: new rand(/[a-zA-Z0-9_-]{64,64}/).gen(),
             passwordResetExpiration: d.addMinutes(new Date(), 30),
         };
 
         try {
-            var result = await db('users')
+            const result = await db('users')
                 .update(resetData)
                 .where({ email: request.email })
                 .returning('id');
+
             if (!result) {
                 ctx.throw(400, 'INVALID_DATA');
             }
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
 
         //Now for the email if they've chosen the web type of forgot password
         if (request.type === 'web') {
-            let email = await fse.readFile('./src/email/forgot.html', 'utf8');
-            let resetUrlCustom =
+            const email = await fse.readFile('./src/email/forgot.html', 'utf8');
+            const resetUrlCustom =
                 request.url +
                 '?passwordResetToken=' +
                 resetData.passwordResetToken +
@@ -387,26 +400,28 @@ class UserController {
         const request = ctx.request.body;
 
         if (!request.passwordResetToken || !request.email) {
-            ctx.throw(404, 'INVALID_DATA');
+            ctx.throw(400, 'INVALID_DATA');
         }
 
-        let [passwordResetData] = await db('users')
+        const [passwordResetData] = await db('users')
             .select('passwordResetExpiration')
             .where({
                 email: request.email,
                 passwordResetToken: request.passwordResetToken,
             });
+
         if (!passwordResetData.passwordResetExpiration) {
             ctx.throw(404, 'INVALID_TOKEN');
         }
 
         //Let's make sure the refreshToken is not expired
-        var tokenIsValid = d.compareAsc(
+        const tokenIsValid = d.compareAsc(
             new Date(),
             passwordResetData.passwordResetExpiration
         );
+
         if (tokenIsValid !== -1) {
-            ctx.throw(400, 'RESET_TOKEN_EXPIRED');
+            ctx.throw(401, 'RESET_TOKEN_EXPIRED');
         }
 
         ctx.body = { message: 'SUCCESS' };
@@ -423,22 +438,24 @@ class UserController {
 
         //Ok, let's make sure their token is correct again, just to be sure since it could have
         //been some time between page entrance and form submission
-        let [passwordResetData] = await db('users')
+        const [passwordResetData] = await db('users')
             .select('passwordResetExpiration')
             .where({
                 email: request.email,
                 passwordResetToken: request.passwordResetToken,
             });
+
         if (!passwordResetData.passwordResetExpiration) {
             ctx.throw(404, 'INVALID_TOKEN');
         }
 
-        var tokenIsValid = d.compareAsc(
+        const tokenIsValid = d.compareAsc(
             new Date(),
             passwordResetData.passwordResetExpiration
         );
+
         if (tokenIsValid !== -1) {
-            ctx.throw(400, 'RESET_TOKEN_EXPIRED');
+            ctx.throw(401, 'RESET_TOKEN_EXPIRED');
         }
 
         //Ok, so we're good. Let's reset their password with the new one they submitted.
@@ -447,7 +464,7 @@ class UserController {
         try {
             request.password = await bcrypt.hash(request.password, 12);
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
 
         //Make sure to null out the password reset token and expiration on insertion
@@ -462,8 +479,9 @@ class UserController {
                 })
                 .where({ email: request.email });
         } catch (error) {
-            ctx.throw(400, 'INVALID_DATA');
+            ctx.throw(500, 'INVALID_DATA');
         }
+
         ctx.body = { message: 'SUCCESS' };
     }
 
@@ -473,7 +491,7 @@ class UserController {
 
     //Helpers
     async generateUniqueToken() {
-        let token = new rand(/[a-zA-Z0-9_-]{7,7}/).gen();
+        const token = new rand(/[a-zA-Z0-9_-]{7}/).gen();
 
         if (await this.checkUniqueToken(token)) {
             await this.generateUniqueToken();
@@ -483,15 +501,13 @@ class UserController {
     }
 
     async checkUniqueToken(token) {
-        let result = await db('users')
+        const result = await db('users')
             .where({
                 token: token,
             })
             .count('id as id');
-        if (result[0].id) {
-            return true;
-        }
-        return false;
+
+        return !!(result.length && result[0].id);
     }
 }
 
