@@ -19,11 +19,6 @@ import val from './DataValidator.js';
 
 const ignoredCharts = ['Alpha', 'Insight Count', 'Alpha Assets', 'Benchmark'];
 
-//const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>[0-9]+[smhd])]$/;  // eg "EURUSD[H,1m]"
-const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>\d*(tick|sec|min|hr|day))]$/; // eg "EURUSD[H,1min]"
-const RSIRgx = /^RSI\((?<period>\d+),(?<movingAvgType>\w+),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)$/; // eg "RSI(14,Wilders,EURUSD_hr)"
-const BBRgx = /^BB\((?<period>\d+),(?<noStdDeviations>\d+(\.\d+)?),(?<symbol>[A-Z]+)_(?<timeframe>\w+)\)_(?<band>\w+)$/; // eg "BB(20,2.2,EURUSD_day)_MiddleBand"
-
 // time postfix comes from QCAlgorithm.Indicators.cs
 //const timeframeRgx = /^(?<no>\d+)(?<val>[smhd])$/;  // eg "1m"
 const timeframeRgx = /^(?<no>\d*)(?<val>(tick|sec|min|hr|day))$/; // eg "1m"

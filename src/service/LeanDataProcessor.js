@@ -127,7 +127,7 @@ export default class Processor {
                         result = onOrOffChart
                             ? {
                                   running: true,
-                                  chart: null, // have to indicate main chart has not been initialized yet
+                                  chart: null, // indicate main chart has not been initialized yet
                                   onchart: [],
                                   offchart: [],
                               }
@@ -137,20 +137,23 @@ export default class Processor {
                                   onchart: [],
                                   offchart: [],
                               };
+
                         onOrOffChart && result[onOrOffChart].push(cnf);
                     } else {  // conf exists, update the relevant bit(s):
                         result = JSON.parse(result);
                         if (onOrOffChart) {
-                            if (
-                                result[onOrOffChart].find(
-                                    oc => oc.id === chartConfId
-                                ) === undefined
-                            ) {
-                                result[onOrOffChart].push(cnf);
-                            }
-                        } else if (result.chart === null) {  // main chart
+                            //if (
+                            //    result[onOrOffChart].find(oc => oc.id === chartConfId) === undefined
+                            //) {
+                            //    result[onOrOffChart].push(cnf);
+                            //}
+                            result[onOrOffChart].push(cnf);
+                        } else {
                             result.chart = cnf;
                         }
+                        //else if (result.chart === null) {  // main chart
+                        //   result.chart = cnf;
+                        //}
                     }
 
                     return redis.set(algoId, JSON.stringify(result)); // TODO log out write errors!
@@ -159,9 +162,7 @@ export default class Processor {
                 });
             }
 
-            //redis.set(`${algoId}_chart_conf`, JSON.stringify(chartConf.conf));  // think all chart conf is ok to store under <algoId> key
-
-            // store data in redis:
+            // store data in redis (no need not await for this operation):
             tvData.forEach(d => VueCandleRepo.write(chartConfId, d));
         };
 
@@ -197,7 +198,7 @@ export default class Processor {
                 }
 
                 break;
-            case 'BB': // special cases, can't solve universally under 'Indicators'
+            case 'BB': // BB & KC are channel types
             case 'KC':
                 const onOffChart = 'onchart';
                 chartConfId = `${algoId}:${onOffChart}:${c.Name}:${
