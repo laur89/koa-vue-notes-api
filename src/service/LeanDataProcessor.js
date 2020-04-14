@@ -109,7 +109,7 @@ export default class Processor {
                   };
             this.ioSock.to(algoId).emit('data', liveUpdatePayload);
 
-            val.feed(algoId, tvData); // TODO: is this common enough?
+            //val.feed(algoId, tvData); // TODO: is this common enough?
             /////////////////////////
             // TODO: perhaps more efficient to check if key that stars w/ 'algoId:chart:' exists? that'd mean that chart,on-offChart are stored under separate keys tho...
             // then again, we'd only win on read, as we expect it all to be there...

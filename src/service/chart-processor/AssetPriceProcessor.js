@@ -11,11 +11,10 @@ const priceRgx = /^(?<symbol>[A-Z]+)\[(?<ohlc>[OHLC]),(?<timeframe>\d*(tick|sec|
 
 const convertAssetPriceToCandles = (chart, chartConf) => {
     const series = chart.Series;
-    let index = null;
+    //let index = null;  // TODO: start referring to index prop from LEAN
     let symbol, timeframe, periodMs;
 
     if (chartConf === undefined) {
-        //const j = series[Object.keys(series)[0]];
         const match = priceRgx.exec(Object.keys(series)[0]);
         if (match === null)
             throw new Error(
@@ -24,7 +23,6 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
                 }]`
             ); // sanity check
         symbol = match.groups.symbol;
-        //const ohlc = match.groups.ohlc;
         timeframe = match.groups.timeframe;
         periodMs = timeframeToPeriod(timeframe);
     } else {
@@ -38,17 +36,12 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
     const l = series[`${symbol}[L,${timeframe}]`].Values;
     const c = series[`${symbol}[C,${timeframe}]`].Values;
 
-    if (
-        !(
+    if (!(
             o.length !== 0 &&
             o.length === h.length &&
             o.length === l.length &&
-            o.length === c.length
-        )
-    ) {
-        throw new Error(
-            `${symbol} tradebar series lengths didn't match or were equal to 0`
-        );
+            o.length === c.length)) {
+        throw new Error(`${symbol} tradebar series were empty or lengths didn't match`);
     }
 
     const bars = [];
@@ -56,8 +49,7 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
         const bar = new TradeBar();
         bar.Symbol = symbol;
         bar.Period = periodMs;
-        //bar.Time = new IDate(o[i].x); // do not convert to nanos here, as we're still on LEAN data at this point;
-        bar.Time = new IDate(o[i].x * 1000); // LEAN sends data in seconds
+        bar.Time = new IDate(o[i].x * 1000);  // LEAN sends time in seconds
         bar.Open = o[i].y;
         bar.High = h[i].y;
         bar.Low = l[i].y;
@@ -74,8 +66,6 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
                 conf: {
                     type: 'Candles',
                     name: `${symbol}(${timeframe})`,
-                    //chartName: 'algo name or ID from api',
-                    //data: [],
                     settings: {},
                     // TODO: we should also store series index somewhere
                 },
@@ -85,7 +75,6 @@ const convertAssetPriceToCandles = (chart, chartConf) => {
                 },
                 symbol: symbol,
                 //isInRedis: false,   // marks if root element ('chart') for this algo has been stored in redis & is discoverable
-                //bars: bars,
                 consolidators: getCommonConsolidators(
                     periodMs,
                     TradeBarConsolidator,

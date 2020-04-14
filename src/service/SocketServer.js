@@ -36,10 +36,6 @@ import fs from 'fs';
 //console.log('yyyy:' + JSON.stringify(typeof ioSock.on))
 //console.log('xx:' + JSON.stringify(typeof io.emit))
 
-const leanConf = {
-    host: process.env.LEAN_HOST,
-    port: process.env.LEAN_PORT,
-};
 
 class Sock {
     constructor(app) {
