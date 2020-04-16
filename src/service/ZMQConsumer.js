@@ -97,31 +97,14 @@ const msgTypes = new Map();
 const eTypeToHasChartsCount = new Map();
 const hasores = new Map();
 const charts = new Map();
-const vueCharts = new Map();
 const algoIdsStoredInDB = new Set();
-
-const createChartScaffold = (mainChartType = 'Candles') => ({
-    // TODO: need to parametirze vue chart types
-    chart: {
-        chart: {
-            type: mainChartType,
-            data: [],
-            settings: {},
-        },
-        //onchart: [],
-        //offchart: [{
-        //name: 'Equity',
-        //type: 'Candles',
-        //    data: []
-        //}]
-    },
-});
 
 const chartController = new ChartController(); // TODO: cc should be singleton
 class Consumer {
-    constructor(ioSock, processor) {
+    constructor(ioSock, chartProcessor, orderProcessor) {
         this.ioSock = ioSock;
-        this.processor = processor;
+        this.chartProcessor = chartProcessor;
+        this.orderProcessor = orderProcessor;
     }
 
     async start() {
@@ -130,13 +113,7 @@ class Consumer {
         sock.connect(`tcp://${leanConf.host}:${leanConf.port}`);
         logger.info(`ZMQ pull connected to ${leanConf.host}:${leanConf.port}`);
 
-        const algoId = 'TODO hard-coded backtest ID75'; // TODO, extract from LEAN msg eventually
-
-        let vueChart = vueCharts.get(algoId);
-        if (vueChart === undefined) {
-            vueChart = createChartScaffold();
-            vueCharts.set(algoId, vueChart);
-        }
+        const algoId = 'TODO hard-coded backtest ID93'; // TODO, extract from LEAN msg eventually
 
         let i, t;
         for await (const [msg] of sock) {
@@ -172,10 +149,12 @@ class Consumer {
                     `monster rannge: ${d[0].x} - ${d[d.length - 1].x}`
                 );
                 val.printRange(algoId);
+
+                persistFinalState(i);
             } else if (i.hasOwnProperty('oResults')) {
                 hasores.set(t, hasores.has(t) ? hasores.get(t) + 1 : 1);
 
-                if (!i.oResults.hasOwnProperty('Charts')) continue;
+                //if (!i.oResults.hasOwnProperty('Charts')) continue;  <-- can't do this anymore, we're also processing Orders!
                 eTypeToHasChartsCount.set(
                     t,
                     eTypeToHasChartsCount.has(t)
@@ -183,36 +162,39 @@ class Consumer {
                         : 1
                 );
 
-                let charts_ = i.oResults.Charts;
-                for (const chartName in charts_) {
-                    chartName &&
-                        charts.set(
-                            chartName,
-                            charts.has(chartName)
-                                ? charts.get(chartName) + 1
-                                : 1
-                        );
-                    //logger.error(`chart ${chartName} seriestype: ${sTypeTrans(1)}`)
-                    let c = charts_[chartName];
-                    let series = c['Series'];
-                    for (const seriesName in series) {
-                        let s = series[seriesName];
-                        logger.debug(
-                            `chart [${chartName}]:series [${
-                                s['Name']
-                            }] type: [${sTypeTrans(s['SeriesType'])}]`
-                        );
-                    }
+                if (i.oResults.hasOwnProperty('Charts')) {
+                    const charts_ = i.oResults.Charts;
+                    for (const chartName in charts_) {
+                        chartName &&
+                            charts.set(
+                                chartName,
+                                charts.has(chartName)
+                                    ? charts.get(chartName) + 1
+                                    : 1
+                            );
+                        //logger.error(`chart ${chartName} seriestype: ${sTypeTrans(1)}`)
+                        let c = charts_[chartName];
+                        let series = c['Series'];
+                        for (const seriesName in series) {
+                            let s = series[seriesName];
+                            logger.debug(
+                                `chart [${chartName}]:series [${
+                                    s['Name']
+                                }] type: [${sTypeTrans(s['SeriesType'])}]`
+                            );
+                        }
 
-                    await this.processor.processLeanChart(c, algoId);
+                        await this.chartProcessor.processLeanChart(c, algoId);
+                    }
+                }
+
+                if (i.oResults.hasOwnProperty('Orders')) {
+                    await this.orderProcessor.processLeanOrders(i.oResults, algoId);
                 }
             }
 
-            //vueChart.chart.chart.data.length !== 0 && pushToClients(this.ioSock.getSocket(), vueChart);
-
             if (t === 'SystemDebug') {
                 logger.error('FIN algo');
-                persistFinalState(vueChart);
 
                 logger.debug(msgTypes);
                 msgTypes.clear();

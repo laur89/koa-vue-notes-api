@@ -7,7 +7,7 @@ const tradeBarToVueCandleBar = bar => [
     0, // volume
 ];
 
-const channelBaseDataToVueDataPoint = args => {
+const multiLineBaseDataToVueDataPoint = args => {
     const d = [
         args[0].Time.getTime(), // all of the elements' times per one block should be the same
         //...args.map(x => x.Value),
@@ -23,5 +23,5 @@ const baseDataToVueDataPoint = dp => [dp.Time.getTime(), dp.Value];
 export {
     tradeBarToVueCandleBar,
     baseDataToVueDataPoint,
-    channelBaseDataToVueDataPoint,
+    multiLineBaseDataToVueDataPoint,
 };

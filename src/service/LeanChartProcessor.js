@@ -2,10 +2,11 @@ import BaseDataConsolidator from '../consolidators/BaseDataConsolidator.js';
 import channelTypeProcessor from './chart-processor/ChannelTypeProcessor.js';
 import assetPriceProcessor from './chart-processor/AssetPriceProcessor.js';
 import convertSingleLineIndicatorToSpline from './chart-processor/SingleLineProcessor.js';
+import convertAdxIndicatorToSplines from './chart-processor/ThreeLineProcessor.js';
 import {
     tradeBarToVueCandleBar,
     baseDataToVueDataPoint,
-    channelBaseDataToVueDataPoint,
+    multiLineBaseDataToVueDataPoint,
 } from '../converters/vue/ChartConverter.js';
 import logger from '../logs/log.js';
 import VueCandleRepo from '../repository/VueCandleRepo.js';
@@ -68,7 +69,7 @@ const processStratEquity = (c, chartConf) => {
     }
 };
 
-export default class Processor {
+export default class ChartProcessor {
     constructor(ioSock) {
         this.ioSock = ioSock.getSocket();
     }
@@ -167,7 +168,7 @@ export default class Processor {
         };
 
         switch (c.Name) {
-            case 'Asset Price':
+            case 'Asset Price': {
                 chartConfId = `${algoId}:chart:${c.Name}`;
                 fetchChartConf();
                 [data, chartConf] = assetPriceProcessor(c, chartConf);
@@ -179,6 +180,7 @@ export default class Processor {
                     //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
                 });
                 break;
+            }
             case 'LineIndicators': // TODO: should we already vet here whether we have logic to process given indicator, not check downstream?
                 for (const sKey in c.Series) {
                     const onOffChart = 'offchart'; // TODO: always offchart? sounds like bold assumption;
@@ -199,14 +201,14 @@ export default class Processor {
 
                 break;
             case 'BB': // BB & KC are channel types
-            case 'KC':
+            case 'KC': {
                 const onOffChart = 'onchart';
                 chartConfId = `${algoId}:${onOffChart}:${c.Name}:${
                     Object.keys(c.Series)[0]
                 }`; // TODO: need to append _a_ series name to the chartCOnf if?
                 fetchChartConf();
                 [data, chartConf] = channelTypeProcessor(c, chartConf);
-                await postProcessCommon(channelBaseDataToVueDataPoint, onOffChart);
+                await postProcessCommon(multiLineBaseDataToVueDataPoint, onOffChart);
 
                 chartConf.consolidators.forEach(consolidator => {
                     data.forEach(consolidator.Update, consolidator); // TODO: can be made common?
@@ -214,6 +216,23 @@ export default class Processor {
                     //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
                 });
                 break;
+            }
+            case 'ADX': {
+                const onOffChart = 'offchart';
+                chartConfId = `${algoId}:${onOffChart}:${c.Name}:${
+                    Object.keys(c.Series)[0]
+                }`; // TODO: need to append _a_ series name to the chartCOnf if?
+                fetchChartConf();
+                [data, chartConf] = convertAdxIndicatorToSplines(c, chartConf);
+                await postProcessCommon(multiLineBaseDataToVueDataPoint, onOffChart);
+
+                chartConf.consolidators.forEach(consolidator => {
+                    data.forEach(consolidator.Update, consolidator); // TODO: can be made common?
+                    // TODO: Scan doesn't make much sense in backtest, does it?
+                    //consolidator.Scan(timeKeeper.GetLocalTimeKeeper(update.Target.ExchangeTimeZone).LocalTime);
+                });
+                break;
+            }
             case 'Strategy Equity':
                 return; // TODO: move this block to plc()
 

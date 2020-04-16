@@ -9,7 +9,8 @@ import error from 'koa-json-error';
 import ratelimit from 'koa-ratelimit';
 import Consumer from './service/ZMQConsumer.js';
 import Sock from './service/SocketServer.js';
-import Processor from './service/LeanDataProcessor.js';
+import ChartProcessor from './service/LeanChartProcessor.js';
+import OrderProcessor from './service/LeanOrderProcessor.js';
 import redis from './io/redisClientProvider.js';
 
 //Routes
@@ -24,8 +25,9 @@ const app = new Koa();
 
 // ioSocket & ZMQ:
 const socket = new Sock(app.callback());
-const processor = new Processor(socket);
-new Consumer(socket, processor).start();
+const chartProcessor = new ChartProcessor(socket);
+const orderProcessor = new OrderProcessor(socket);
+new Consumer(socket, chartProcessor, orderProcessor).start();
 //socket.startPlayback();  // replay our mock data
 
 // TODO: delete this after debugging:

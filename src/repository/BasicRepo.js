@@ -1,4 +1,3 @@
-import shortid from 'shortid';
 import _ from 'lodash';
 import client from '../io/redisClientProvider.js';
 import logger from '../logs/log.js';
@@ -7,8 +6,6 @@ const expSeconds = (days = 30) => {
     const secondsPerDay = 86400;
     return days * secondsPerDay;
 };
-
-const buildId = () => shortid.generate();
 
 const stringify = {
     string: data => data,
@@ -117,7 +114,7 @@ export default class Repository {
             const multi = client.multi();
             //const id = id; // = buildId();
             //const redisKey = this._buildRedisKey(id);
-            const dataKey = `${id}:${shortid.generate()}`;
+            const dataKey = this.schema.getId(data, id);
             const serialized = this.schema.serialize(data);
 
             if (serialized) {
